@@ -1,0 +1,41 @@
+{
+    "tasks": [
+        {
+            "type": "cppbuild",
+            "label": "gcc",
+            "command": "/usr/bin/clang++",
+            "args": [
+				"-g",
+				"-std=c++11",
+				"-Wall",
+				"-m64",
+
+				"${workspaceFolder}/src/main.cpp",
+				"${workspaceFolder}/src/glad.c",
+				"${workspaceFolder}/src/shader.cpp",
+				"-o",
+				"${workspaceFolder}/hellogl",
+
+				"-I/usr/include/SDL2/"
+
+				"-lSDL2",
+				"-lGL",
+				//"-lpthread",
+				"-lstdc++", // for chrono, timenow? needed for gcc, clang without
+
+            ],
+            "options": {
+                "cwd": "/usr/bin"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "Generated task by Debugger"
+        }
+    ],
+    "version": "2.0.0"
+}
