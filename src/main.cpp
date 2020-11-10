@@ -14,24 +14,28 @@ static SDL_GLContext mainContext;
 
 static const int vsync = 1;
 
-static const char *vertSrc = "#version 450 core\n"
-    "layout (location = 0) in vec3 aPos;\n"
-	"layout (location = 0) uniform float rotation;\n"
+static constexpr char *vertSrc = R"(
+	#version 450 core
+	layout (location = 0) in vec3 aPos;
+	layout (location = 0) uniform float rotation;
+	layout (location = 0) out vec2 pos;
+	void main()
+	{
+		vec2 p = vec2(cos(rotation), sin(rotation));
+		p = vec2(	p.x * aPos.x - p.y * aPos.y,
+					p.y * aPos.x + p.x * aPos.y);
+	   gl_Position = vec4(p.x, p.y, aPos.z, 1.0);
+	   pos = vec2(p.xy);
+	})";
 
-    "void main()\n"
-    "{\n"
-	"	vec2 p = vec2(cos(rotation), sin(rotation));\n"
-	"	p = vec2(	p.x * aPos.x - p.y * aPos.y,\n"
-	"				p.y * aPos.x + p.x * aPos.y);\n"
-    "   gl_Position = vec4(p.x, p.y, aPos.z, 1.0);\n"
-    "}\0";
-
-static const char *fragSrc = "#version 450 core\n"
-	"out vec4 FragColor;\n"
-	"void main()\n"
-	"{\n"
-	"	FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
-	"}\0";
+static const char *fragSrc = R"(
+	#version 450 core
+	layout (location = 0) out vec4 col;
+	layout (location = 0) in vec2 pos;
+	void main()
+	{
+		col = vec4(pos * 0.5f + 0.5f, 0.2f, 1.0f);
+	})";
 
 
 static void APIENTRY openglCallbackFunction(
@@ -74,9 +78,13 @@ static bool initGL(const char *windowStr)
 	SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 5);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 	// Also request a depth buffer
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+
+	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
+	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 16);
 
 	// Debug!
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
@@ -128,6 +136,8 @@ static bool initGL(const char *windowStr)
 
 	SDL_SetWindowResizable(window, SDL_TRUE);
 
+	glClipControl(GL_UPPER_LEFT, GL_ZERO_TO_ONE);
+
 	return true;
 }
 
@@ -142,9 +152,9 @@ static void mainProgramLoop()
 
 	float vertices[] = 
 	{
-		-0.5f, -0.5f, 0.0f,
-		0.5f, -0.5f, 0.0f,
-		0.0f,  0.5f, 0.0f
+		-1.0f, -1.0f, 0.0f,
+		1.0f, -1.0f, 0.0f,
+		0.0f,  1.0f, 0.0f
 	};
 
 	unsigned int VBO;
