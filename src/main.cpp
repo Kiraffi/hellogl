@@ -12,29 +12,42 @@ static constexpr int SCREEN_HEIGHT = 540;
 static SDL_Window *window = nullptr;
 static SDL_GLContext mainContext;
 
+static int windowSizeX = 0;
+static int windowSizeY = 0;
+
 static const int vsync = 1;
 
 static constexpr char *vertSrc = R"(
 	#version 450 core
 	layout (location = 0) in vec3 aPos;
-	layout (location = 0) uniform float rotation;
-	layout (location = 0) out vec2 pos;
+
+	layout (location = 0) uniform vec4 posRotSize;
+	layout (location = 1) uniform vec2 windowSize;
+	layout (location = 2) uniform vec3 colIn;
+
+	layout (location = 0) out vec3 col;
 	void main()
 	{
-		vec2 p = vec2(cos(rotation), sin(rotation));
+		vec2 p = vec2(cos(posRotSize.z), sin(posRotSize.z));
 		p = vec2(	p.x * aPos.x - p.y * aPos.y,
 					p.y * aPos.x + p.x * aPos.y);
-	   gl_Position = vec4(p.x, p.y, aPos.z, 1.0);
-	   pos = vec2(p.xy);
+		p *= posRotSize.w;
+		p += posRotSize.xy;
+		p /= windowSize * 0.5f;
+		p -= 1.0f;
+	   gl_Position = vec4(p.xy, aPos.z, 1.0);
+	   col = colIn;
 	})";
 
 static const char *fragSrc = R"(
 	#version 450 core
 	layout (location = 0) out vec4 col;
-	layout (location = 0) in vec2 pos;
+
+	layout (location = 0) in vec3 colIn;
+
 	void main()
 	{
-		col = vec4(pos * 0.5f + 0.5f, 0.2f, 1.0f);
+		col = vec4(colIn, 1.0f);
 	})";
 
 
@@ -59,7 +72,8 @@ static void APIENTRY openglCallbackFunction(
 static void windowResized(int w, int h)
 {
 	printf("Window size: %i: %i\n", w, h);
-
+	windowSizeX = w;
+	windowSizeY = h;
 	glViewport(0, 0, w, h);
 }
 
@@ -152,9 +166,14 @@ static void mainProgramLoop()
 
 	float vertices[] = 
 	{
-		-1.0f, -1.0f, 0.0f,
-		1.0f, -1.0f, 0.0f,
-		0.0f,  1.0f, 0.0f
+		-0.5f, -0.5f, 0.0f,
+		0.5f, 0.5f, 0.0f,
+		-0.5f,  0.5f, 0.0f,
+
+		-0.5f,  -0.5f, 0.0f,
+		0.5f,  -0.5f, 0.0f,
+		0.5f,  0.5f, 0.0f
+
 	};
 
 	unsigned int VBO;
@@ -187,6 +206,8 @@ static void mainProgramLoop()
 	Uint64 lastStamp = 0;
 	double freq = (double)SDL_GetPerformanceFrequency();
 
+	bool arr[8*12] = {};
+
 	//uint32_t lastTicks = SDL_GetTicks();
 	while (!quit)
 	{
@@ -194,9 +215,17 @@ static void mainProgramLoop()
 		nowStamp = SDL_GetPerformanceCounter();
 		dt = float((nowStamp - lastStamp)*1000 / freq );
 
+
+		int mouseX, mouseY;
+		uint32_t mousePress = SDL_GetMouseState(&mouseX, &mouseY);
+		bool mouseLeftDown = (mousePress & SDL_BUTTON(SDL_BUTTON_LEFT)) == SDL_BUTTON(SDL_BUTTON_LEFT);
+		bool mouseRightDown = (mousePress & SDL_BUTTON(SDL_BUTTON_RIGHT)) == SDL_BUTTON(SDL_BUTTON_RIGHT);
+
 		angle += 0.001f * dt;
 		shader.useProgram();
-		glUniform1f(0, angle);
+		glUniform4f(0, float(windowSizeX * -0.5f) + float(mouseX), 
+			float(windowSizeY * -0.5f) + float(mouseY), angle, 100.0f);
+		glUniform2f(1, windowSizeX, windowSizeY);
 
 		while (SDL_PollEvent(&event))
 		{
@@ -214,6 +243,11 @@ static void mainProgramLoop()
 						case SDLK_ESCAPE:
 							quit = true;
 							break;
+						case SDLK_c:
+						{
+							for(int i = 0; i < 12 * 8; ++i)
+								arr[i] = false;
+						}
 						default:
 							break;
 					}
@@ -226,19 +260,61 @@ static void mainProgramLoop()
 					break;
 			}
 		}
+
 		 //Clear color buffer
 		glClear( GL_COLOR_BUFFER_BIT );
 		
 		shader.useProgram();
 
+
+		
 		glBindVertexArray(VAO);
-		glDrawArrays(GL_TRIANGLES, 0, 3);
+		static constexpr float buttonSize = 20.0f;
+		static constexpr float smallButtonSize = 2.0f;
+		static constexpr float borderSizes = 2.0f;
+		for(int j = 0; j < 12; ++j)
+		{
+			
+			for(int i = 0; i < 8; ++i)
+			{
+				float offX = float((i - 4) * (borderSizes + buttonSize)) + windowSizeX * 0.5f;
+				float offY = float((j - 6) * (borderSizes + buttonSize)) + windowSizeY * 0.5f;
+
+				float smallOffX = float(i * (smallButtonSize)) + 10.0f;
+				float smallOffY = float(j * (smallButtonSize)) + 10.0f;
+
+				bool insideRect = mouseX > offX - (borderSizes + buttonSize) * 0.5f &&
+					mouseX < offX + (borderSizes + buttonSize) * 0.5f &&
+					mouseY > offY - (borderSizes + buttonSize) * 0.5f &&
+					mouseY < offY + (borderSizes + buttonSize) * 0.5f;
+				if(mouseLeftDown && insideRect)
+					arr[i + j * 8] = true;
+				else if(mouseRightDown && insideRect)
+					arr[i + j * 8] = false;
+				
+
+
+				if(arr[i + j * 8])
+					glUniform3f(2, 1.0f, 1.0f, 1.0f);
+				else
+					glUniform3f(2, 0.0f, 0.0f, 0.0f);
+				glUniform4f(0, offX, offY, 0.0f, buttonSize);
+				glDrawArrays(GL_TRIANGLES, 0, 6);
+
+				if(arr[i + j * 8])
+				{
+					glUniform4f(0, smallOffX, smallOffY, 0.0f, smallButtonSize);
+					glDrawArrays(GL_TRIANGLES, 0, 6);
+
+				}
+			}
+		}
 		SDL_Delay(1);
 		
 		SDL_GL_SwapWindow(window);
 
-		char str[50];
-		sprintf(str, "%2.2fms, fps: %4.2f", dt, 1000.0f / dt);
+		char str[100];
+		sprintf(str, "%2.2fms, fps: %4.2f, mx: %i, my: %i, mbs: %i ml: %i, mr: %i", dt, 1000.0f / dt, mouseX, mouseY, mousePress, mouseLeftDown, mouseRightDown);
 		SDL_SetWindowTitle(window, str);
 
 		//printf("Frame duration: %f fps: %f\n", dt, 1000.0f / dt);
