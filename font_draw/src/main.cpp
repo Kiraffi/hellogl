@@ -7,6 +7,10 @@
 
 #include "../../lib/ogl/shader.h"
 
+#include <vector>
+#include <filesystem>
+#include <fstream>
+
 static constexpr int SCREEN_WIDTH  = 640;
 static constexpr int SCREEN_HEIGHT = 540;
 
@@ -43,6 +47,48 @@ static const char *fragSrc = R"(
 	{
 		col = vec4(colIn, 1.0f);
 	})";
+
+
+bool loadData(const std::string &fileName, std::vector<char> &dataOut)
+{
+	//
+	if(std::filesystem::exists(fileName))
+	{
+		std::filesystem::path p(fileName);
+		uint32_t s = std::filesystem::file_size(p);
+
+		dataOut.resize(s);
+
+		std::ifstream f(p, std::ios::in | std::ios::binary);
+
+
+		f.read(dataOut.data(), s);
+
+		printf("filesize: %u\n", s);
+		return true;
+	}
+	return false;
+}
+
+bool saveData(const std::string &fileName, const std::vector<char> &data)
+{
+	//
+	if(std::filesystem::exists(fileName))
+	{
+		std::filesystem::path p(fileName);
+		uint32_t s = std::filesystem::file_size(p);
+
+
+		std::ofstream f(p, std::ios::out | std::ios::binary);
+
+
+		f.write(data.data(), data.size());
+
+		printf("filesize: %u\n", data.size());
+		return true;
+	}
+	return false;
+}
 
 
 static void APIENTRY openglCallbackFunction(
@@ -178,7 +224,12 @@ static void APIENTRY openglCallbackFunction(
 {
 	(void)source; (void)type; (void)id; 
 	(void)severity; (void)length; (void)userParam;
-	fprintf(stderr, "%s\n", message);
+	
+	if (severity != GL_DEBUG_SEVERITY_NOTIFICATION)
+	{
+		fprintf(stderr, "%s\n", message);
+	}
+
 	if (severity==GL_DEBUG_SEVERITY_HIGH)
 	{
 		fprintf(stderr, "Aborting...\n");
@@ -186,7 +237,7 @@ static void APIENTRY openglCallbackFunction(
 	}
 }
 
-static void mainProgramLoop(App &app)
+static void mainProgramLoop(App &app, std::vector<char> &data, std::string &filename)
 {
 	Shader shader;
 	if(!shader.initShader(vertSrc, fragSrc))
@@ -237,9 +288,9 @@ static void mainProgramLoop(App &app)
 	Uint64 lastStamp = 0;
 	double freq = (double)SDL_GetPerformanceFrequency();
 
-	bool arr[8*12] = {};
-
+	uint32_t chosenLetter = 'a';
 	//uint32_t lastTicks = SDL_GetTicks();
+
 	while (!quit)
 	{
 		lastStamp = nowStamp;
@@ -271,17 +322,41 @@ static void mainProgramLoop(App &app)
 				
 				case SDL_KEYDOWN:
 				{
-					switch(event.key.keysym.sym)
+					if(((event.key.keysym.mod) & (KMOD_CTRL | KMOD_LCTRL | KMOD_RCTRL)) != 0 &&
+						event.key.keysym.sym == SDLK_s)
 					{
-						case SDLK_q:
+						// save;
+						saveData(filename, data);
+					}
+					else if((event.key.keysym.mod & (KMOD_CTRL | KMOD_LCTRL | KMOD_RCTRL)) != 0 &&
+						event.key.keysym.sym == SDLK_l)
+					{
+						// load;
+						loadData(filename, data);
+					}
+
+					else if(event.key.keysym.sym >= SDLK_SPACE && 
+						event.key.keysym.sym < 128)
+					{
+						chosenLetter = event.key.keysym.sym;
+						//updateArray(arr, data, chosenLetter);
+					}
+					else switch(event.key.keysym.sym)
+					{
 						case SDLK_ESCAPE:
 							quit = true;
 							break;
-						case SDLK_c:
-						{
-							for(int i = 0; i < 12 * 8; ++i)
-								arr[i] = false;
-						}
+
+						case SDLK_RIGHT:
+							if(chosenLetter < 127)
+								++chosenLetter;
+							break; 
+
+						case SDLK_LEFT:
+							if(chosenLetter > 32)
+								--chosenLetter;
+							break; 
+
 						default:
 							break;
 					}
@@ -304,7 +379,7 @@ static void mainProgramLoop(App &app)
 		
 		glBindVertexArray(VAO);
 		static constexpr float buttonSize = 20.0f;
-		static constexpr float smallButtonSize = 2.0f;
+		static constexpr float smallButtonSize = 1.0f;
 		static constexpr float borderSizes = 2.0f;
 		for(int j = 0; j < 12; ++j)
 		{
@@ -321,21 +396,24 @@ static void mainProgramLoop(App &app)
 					mouseX < offX + (borderSizes + buttonSize) * 0.5f &&
 					mouseY > offY - (borderSizes + buttonSize) * 0.5f &&
 					mouseY < offY + (borderSizes + buttonSize) * 0.5f;
+
+				uint32_t indx = (chosenLetter - 32) * 12 + j;
+
 				if(mouseLeftDown && insideRect)
-					arr[i + j * 8] = true;
+					data[indx] |= (1 << i);
 				else if(mouseRightDown && insideRect)
-					arr[i + j * 8] = false;
+					data[indx] &= ~(char(1 << i));
 				
+				bool isVisible = ((data[indx] >> i) & 1) == 1;
 
-
-				if(arr[i + j * 8])
+				if(isVisible)
 					glUniform3f(2, 1.0f, 1.0f, 1.0f);
 				else
 					glUniform3f(2, 0.0f, 0.0f, 0.0f);
 				glUniform4f(0, offX, offY, 0.0f, buttonSize);
 				glDrawArrays(GL_TRIANGLES, 0, 6);
 
-				if(arr[i + j * 8])
+				if(isVisible)
 				{
 					glUniform4f(0, smallOffX, smallOffY, 0.0f, smallButtonSize);
 					glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -355,11 +433,25 @@ static void mainProgramLoop(App &app)
 	}
 }
 
-int main() 
+int main(int argCount, char **argv) 
 {
+	std::vector<char> data;
+	std::string filename;
+	if(argCount < 2)
+	{
+		filename = "new_font.dat";
+	}
+	else
+	{
+		filename = argv[1];
+	}
+	
+	loadData(filename, data);
 	App app;
 	if(app.init("OpenGL 4.5"))
 	{
-		mainProgramLoop(app);
+		mainProgramLoop(app, data, filename);
 	}
+
+	return 0;
 }

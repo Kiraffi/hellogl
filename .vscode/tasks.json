@@ -3,16 +3,16 @@
         {
             "type": "cppbuild",
             "label": "gcc",
-            "command": "/usr/bin/clang++",
+            "command": "/usr/bin/gcc-9",
             "args": [
 				"-g",
-				"-std=c++11",
+				"-std=c++17",
 				"-Wall",
 				"-m64",
 
-				"${workspaceFolder}/src/main.cpp",
-				"${workspaceFolder}/src/glad.c",
-				"${workspaceFolder}/src/shader.cpp",
+				"${workspaceFolder}/font_draw/src/main.cpp",
+				"${workspaceFolder}/external/glad/glad.c",
+				"${workspaceFolder}/lib/ogl/shader.cpp",
 				"-o",
 				"${workspaceFolder}/hellogl",
 
@@ -20,6 +20,7 @@
 
 				"-lSDL2",
 				"-lGL",
+				//"-lstdc++fs", //filesysstem??
 				//"-lpthread",
 				"-lstdc++", // for chrono, timenow? needed for gcc, clang without
 
