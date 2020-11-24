@@ -2,20 +2,13 @@
 #include <cstdlib>
 #include <stdint.h>
 
-#include "glad.h"
+#include "../../external/glad/glad.h"
 #include <SDL2/SDL.h>
 
-#include "shader.h"
+#include "../../lib/ogl/shader.h"
 
 static constexpr int SCREEN_WIDTH  = 640;
 static constexpr int SCREEN_HEIGHT = 540;
-static SDL_Window *window = nullptr;
-static SDL_GLContext mainContext;
-
-static int windowSizeX = 0;
-static int windowSizeY = 0;
-
-static const int vsync = 1;
 
 static constexpr char *vertSrc = R"(
 	#version 450 core
@@ -35,6 +28,7 @@ static constexpr char *vertSrc = R"(
 		p += posRotSize.xy;
 		p /= windowSize * 0.5f;
 		p -= 1.0f;
+		p += 0.25f / windowSize;
 	   gl_Position = vec4(p.xy, aPos.z, 1.0);
 	   col = colIn;
 	})";
@@ -58,6 +52,128 @@ static void APIENTRY openglCallbackFunction(
 	GLenum severity,
 	GLsizei length,
 	const GLchar* message,
+	const void* userParam);
+
+
+class App
+{
+public:
+	bool init(const char *windowStr)
+	{
+		// Initialize SDL 
+		if (SDL_Init(SDL_INIT_VIDEO) < 0)
+		{
+			printf("Couldn't initialize SDL\n");
+			return false;
+		}
+		atexit (SDL_Quit);
+		SDL_GL_LoadLibrary(NULL); // Default OpenGL is fine.
+
+		// Request an OpenGL 4.5 context (should be core)
+		SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 5);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+		// Also request a depth buffer
+		SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+		SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+
+		SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 0);
+		SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 1);
+
+		// Debug!
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
+
+
+		window = SDL_CreateWindow(windowStr, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+			SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_OPENGL);
+
+
+		if (window == NULL)
+		{
+			printf("Couldn't set video mode\n");
+			return false;
+		}
+		
+		mainContext = SDL_GL_CreateContext(window);
+		if (mainContext == nullptr)
+		{
+			printf("Failed to create OpenGL context\n");
+			return false;
+		}
+
+
+		// Check OpenGL properties
+		printf("OpenGL loaded\n");
+		gladLoadGLLoader(SDL_GL_GetProcAddress);
+		printf("Vendor:   %s\n", glGetString(GL_VENDOR));
+		printf("Renderer: %s\n", glGetString(GL_RENDERER));
+		printf("Version:  %s\n", glGetString(GL_VERSION));
+
+		// Enable the debug callback
+		glEnable(GL_DEBUG_OUTPUT);
+		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+		glDebugMessageCallback(openglCallbackFunction, nullptr);
+		glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, true);
+
+
+		// Disable depth test and face culling.
+		glDisable(GL_DEPTH_TEST);
+		glDisable(GL_CULL_FACE);
+
+		int w,h;
+		SDL_GetWindowSize(window, &w, &h);
+		
+		resizeWindow(w, h);
+		glClearColor(0.0f, 0.5f, 1.0f, 0.0f);
+		printf("Screen res: %i:%i\n", w, h);
+
+		SDL_SetWindowResizable(window, SDL_TRUE);
+
+		glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
+
+		return true;
+
+	}
+
+	virtual ~App()
+	{
+		if(mainContext)
+			SDL_GL_DeleteContext(mainContext);
+		mainContext = nullptr;
+	}
+
+	void resizeWindow(int w, int h)
+	{
+		windowWidth = w;
+		windowHeight = h;
+		printf("Window size: %i: %i\n", w, h);
+		glViewport(0, 0, w, h);
+	}
+
+	void setVsyncEnabled(bool enable)
+	{
+		vSync = enable;
+		// Use v-sync
+		SDL_GL_SetSwapInterval(vSync);
+	}
+
+	public: 
+		SDL_Window *window = nullptr;
+		SDL_GLContext mainContext = nullptr;		
+		int windowWidth = 0;
+		int windowHeight = 0;
+		bool vSync = true;
+};
+
+
+static void APIENTRY openglCallbackFunction(
+	GLenum source,
+	GLenum type,
+	GLuint id,
+	GLenum severity,
+	GLsizei length,
+	const GLchar* message,
 	const void* userParam)
 {
 	(void)source; (void)type; (void)id; 
@@ -69,93 +185,8 @@ static void APIENTRY openglCallbackFunction(
 		abort();
 	}
 }
-static void windowResized(int w, int h)
-{
-	printf("Window size: %i: %i\n", w, h);
-	windowSizeX = w;
-	windowSizeY = h;
-	glViewport(0, 0, w, h);
-}
 
-static bool initGL(const char *windowStr)
-{
-	// Initialize SDL 
-	if (SDL_Init(SDL_INIT_VIDEO) < 0)
-	{
-		printf("Couldn't initialize SDL\n");
-		return false;
-	}
-	atexit (SDL_Quit);
-	SDL_GL_LoadLibrary(NULL); // Default OpenGL is fine.
-
-	// Request an OpenGL 4.5 context (should be core)
-	SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 5);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-	// Also request a depth buffer
-	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-
-	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
-	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 16);
-
-	// Debug!
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
-
-
-	window = SDL_CreateWindow(windowStr, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-		SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_OPENGL);
-
-
-	if (window == NULL)
-	{
-		printf("Couldn't set video mode\n");
-		return false;
-	}
-	
-	mainContext = SDL_GL_CreateContext(window);
-	if (mainContext == nullptr)
-	{
-		printf("Failed to create OpenGL context\n");
-		return false;
-	}
-
-
-	// Check OpenGL properties
-	printf("OpenGL loaded\n");
-	gladLoadGLLoader(SDL_GL_GetProcAddress);
-	printf("Vendor:   %s\n", glGetString(GL_VENDOR));
-	printf("Renderer: %s\n", glGetString(GL_RENDERER));
-	printf("Version:  %s\n", glGetString(GL_VERSION));
-
-	// Enable the debug callback
-	glEnable(GL_DEBUG_OUTPUT);
-	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-	glDebugMessageCallback(openglCallbackFunction, nullptr);
-	glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, true);
-
-	// Use v-sync
-	SDL_GL_SetSwapInterval(vsync);
-
-	// Disable depth test and face culling.
-	glDisable(GL_DEPTH_TEST);
-	glDisable(GL_CULL_FACE);
-
-	int w,h;
-	SDL_GetWindowSize(window, &w, &h);
-	windowResized(w, h);
-	glClearColor(0.0f, 0.5f, 1.0f, 0.0f);
-	printf("Screen res: %i:%i\n", w, h);
-
-	SDL_SetWindowResizable(window, SDL_TRUE);
-
-	glClipControl(GL_UPPER_LEFT, GL_ZERO_TO_ONE);
-
-	return true;
-}
-
-static void mainProgramLoop()
+static void mainProgramLoop(App &app)
 {
 	Shader shader;
 	if(!shader.initShader(vertSrc, fragSrc))
@@ -218,14 +249,17 @@ static void mainProgramLoop()
 
 		int mouseX, mouseY;
 		uint32_t mousePress = SDL_GetMouseState(&mouseX, &mouseY);
+
+		mouseY = app.windowHeight - mouseY;
+
 		bool mouseLeftDown = (mousePress & SDL_BUTTON(SDL_BUTTON_LEFT)) == SDL_BUTTON(SDL_BUTTON_LEFT);
 		bool mouseRightDown = (mousePress & SDL_BUTTON(SDL_BUTTON_RIGHT)) == SDL_BUTTON(SDL_BUTTON_RIGHT);
 
 		angle += 0.001f * dt;
 		shader.useProgram();
-		glUniform4f(0, float(windowSizeX * -0.5f) + float(mouseX), 
-			float(windowSizeY * -0.5f) + float(mouseY), angle, 100.0f);
-		glUniform2f(1, windowSizeX, windowSizeY);
+		glUniform4f(0, float(app.windowWidth * -0.5f) + float(mouseX), 
+			float(app.windowHeight * -0.5f) + float(mouseY), angle, 100.0f);
+		glUniform2f(1, app.windowWidth, app.windowHeight);
 
 		while (SDL_PollEvent(&event))
 		{
@@ -255,7 +289,7 @@ static void mainProgramLoop()
 				 case SDL_WINDOWEVENT:
 					if (event.window.event == SDL_WINDOWEVENT_RESIZED)
 					{
-						windowResized(event.window.data1, event.window.data2);
+						app.resizeWindow(event.window.data1, event.window.data2);
 					}
 					break;
 			}
@@ -277,8 +311,8 @@ static void mainProgramLoop()
 			
 			for(int i = 0; i < 8; ++i)
 			{
-				float offX = float((i - 4) * (borderSizes + buttonSize)) + windowSizeX * 0.5f;
-				float offY = float((j - 6) * (borderSizes + buttonSize)) + windowSizeY * 0.5f;
+				float offX = float((i - 4) * (borderSizes + buttonSize)) + app.windowWidth * 0.5f;
+				float offY = float((j - 6) * (borderSizes + buttonSize)) + app.windowHeight * 0.5f;
 
 				float smallOffX = float(i * (smallButtonSize)) + 10.0f;
 				float smallOffY = float(j * (smallButtonSize)) + 10.0f;
@@ -311,11 +345,11 @@ static void mainProgramLoop()
 		}
 		SDL_Delay(1);
 		
-		SDL_GL_SwapWindow(window);
+		SDL_GL_SwapWindow(app.window);
 
 		char str[100];
 		sprintf(str, "%2.2fms, fps: %4.2f, mx: %i, my: %i, mbs: %i ml: %i, mr: %i", dt, 1000.0f / dt, mouseX, mouseY, mousePress, mouseLeftDown, mouseRightDown);
-		SDL_SetWindowTitle(window, str);
+		SDL_SetWindowTitle(app.window, str);
 
 		//printf("Frame duration: %f fps: %f\n", dt, 1000.0f / dt);
 	}
@@ -323,9 +357,9 @@ static void mainProgramLoop()
 
 int main() 
 {
-	if(initGL("OpenGL 4.5"))
+	App app;
+	if(app.init("OpenGL 4.5"))
 	{
-		mainProgramLoop();
-		SDL_GL_DeleteContext(mainContext);
+		mainProgramLoop(app);
 	}
 }
