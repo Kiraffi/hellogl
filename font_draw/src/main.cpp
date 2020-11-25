@@ -391,6 +391,8 @@ static void mainProgramLoop(App &app, std::vector<char> &data, std::string &file
 		}
 	}
 
+	char buffData[12] = {};
+
 	while (!quit)
 	{
 		lastStamp = nowStamp;
@@ -432,6 +434,27 @@ static void mainProgramLoop(App &app, std::vector<char> &data, std::string &file
 					{
 						// load;
 						loadData(filename, data);
+					}
+
+					else if(((event.key.keysym.mod) & (KMOD_CTRL | KMOD_LCTRL | KMOD_RCTRL)) != 0 &&
+						event.key.keysym.sym == SDLK_c)
+					{
+						// copy
+						for(int i = 0; i < 12; ++i)
+						{
+							uint32_t ind = (chosenLetter - 32) * 12 + i;
+							buffData[i] = data[ind]; 
+						}
+					}
+					else if((event.key.keysym.mod & (KMOD_CTRL | KMOD_LCTRL | KMOD_RCTRL)) != 0 &&
+						event.key.keysym.sym == SDLK_v)
+					{
+						// paste
+						for(int i = 0; i < 12; ++i)
+						{
+							uint32_t ind = (chosenLetter - 32) * 12 + i;
+							data[ind] = char(buffData[i]); 
+						}
 					}
 
 					else if(event.key.keysym.sym >= SDLK_SPACE && 
