@@ -13,6 +13,7 @@
 				"${workspaceFolder}/font_draw/src/main.cpp",
 				"${workspaceFolder}/external/glad/glad.c",
 				"${workspaceFolder}/lib/ogl/shader.cpp",
+				"${workspaceFolder}/lib/ogl/shaderbuffer.cpp",
 				"-o",
 				"${workspaceFolder}/hellogl",
 
