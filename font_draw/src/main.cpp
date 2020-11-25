@@ -19,7 +19,8 @@ struct GPUVertexData
 {
 	float posX;
 	float posY;
-	float pixelSize;
+	uint16_t pixelSizeX;
+	uint16_t pixelSizeY;
 	uint32_t color;
 };
 
@@ -31,7 +32,7 @@ static const char *vertSrc = R"(
 	struct VData
 	{
 		vec2 vpos;
-		float vSize;
+		uint vSizes;
 		uint vColor;
 	};
 
@@ -57,7 +58,8 @@ static const char *vertSrc = R"(
 		vec2 p = vec2(-0.5f, -0.5f);
 		p.x = (vertId + 1) % 4 < 2 ? -0.5f : 0.5f;
 		p.y = vertId < 2 ? -0.5f : 0.5f;
-		p *= values[quadId].vSize;
+		vec2 vSize = vec2(float(values[quadId].vSizes & 65535u), float((values[quadId].vSizes >> 16) & 65535u)); 
+		p *= vSize;
 		p += values[quadId].vpos;
 		p /= windowSize * 0.5f;
 		p -= 1.0f;
@@ -287,7 +289,6 @@ static void mainProgramLoop(App &app, std::vector<char> &data, std::string &file
 	}
 
 
-
 	ShaderBuffer ssbo(GL_SHADER_STORAGE_BUFFER, 10240u * 16u, GL_DYNAMIC_COPY, nullptr);
 	
 	SDL_Event event;
@@ -331,12 +332,24 @@ static void mainProgramLoop(App &app, std::vector<char> &data, std::string &file
 ;	//glEnableVertexAttribArray(0);  
 
 	std::vector<GPUVertexData> vertData;
-	vertData.resize(12*8* (128-32 + 1));
+	vertData.resize(12*8* (128-32 + 1) + 1);
 
 
 	static constexpr float buttonSize = 20.0f;
 	static constexpr float smallButtonSize = 2.0f;
 	static constexpr float borderSizes = 2.0f;
+
+	{
+		float offX = (borderSizes + buttonSize) + app.windowWidth * 0.5f;
+		float offY = (borderSizes + buttonSize) + app.windowHeight * 0.5f;
+
+		GPUVertexData &vdata = vertData[0];
+		vdata.color = (255u) + (255u < 24u);
+		vdata.pixelSizeX = smallButtonSize * 8 + 4;
+		vdata.pixelSizeY = smallButtonSize * 12 + 4;
+		vdata.posX = offX;
+		vdata.posY = offY;
+	}
 
 	for(int j = 0; j < 12; ++j)
 	{
@@ -345,9 +358,9 @@ static void mainProgramLoop(App &app, std::vector<char> &data, std::string &file
 			float offX = float((i - 4) * (borderSizes + buttonSize)) + app.windowWidth * 0.5f;
 			float offY = float((j - 6) * (borderSizes + buttonSize)) + app.windowHeight * 0.5f;
 
-			GPUVertexData &vdata = vertData[i + j * 8];
+			GPUVertexData &vdata = vertData[i + j * 8 + 1];
 			vdata.color = 0;
-			vdata.pixelSize = buttonSize;
+			vdata.pixelSizeX = vdata.pixelSizeY = buttonSize;
 			vdata.posX = offX;
 			vdata.posY = offY;
 		}
@@ -361,16 +374,16 @@ static void mainProgramLoop(App &app, std::vector<char> &data, std::string &file
 		{
 			for(int i = 0; i < 8; ++i)
 			{
-				GPUVertexData &vdata = vertData[i + j * 8 + (k + 1) * 8 * 12];
+				GPUVertexData &vdata = vertData[i + j * 8 + (k + 1) * 8 * 12 + 1];
 
-				float smallOffX = float(i * (smallButtonSize)) + 10.0f + float(x * 8) * smallButtonSize + x;
-				float smallOffY = float(j * (smallButtonSize)) + 10.0f + float(y * 12) * smallButtonSize + y;
+				float smallOffX = float(i * (smallButtonSize)) + 10.0f + float(x * 8) * smallButtonSize + x * 2;
+				float smallOffY = float(j * (smallButtonSize)) + 10.0f + float(y * 12) * smallButtonSize + y * 2;
 
 				uint32_t indx = k * 12 + j;
 				bool isVisible = ((data[indx] >> i) & 1) == 1;
 
 				vdata.color = isVisible ? ~0u : 0u;
-				vdata.pixelSize = smallButtonSize;
+				vdata.pixelSizeX = vdata.pixelSizeY = smallButtonSize;
 				vdata.posX = smallOffX;
 				vdata.posY = smallOffY;
 
@@ -441,7 +454,19 @@ static void mainProgramLoop(App &app, std::vector<char> &data, std::string &file
 						case SDLK_LEFT:
 							if(chosenLetter > 32)
 								--chosenLetter;
-							break; 
+							break;
+
+						case SDLK_UP:
+							chosenLetter += 8;
+							if(chosenLetter > 127)
+								chosenLetter = 127;
+							break;
+
+						case SDLK_DOWN:
+							chosenLetter -= 8;
+							if(chosenLetter < 32)
+								chosenLetter = 32;
+							break;
 
 						default:
 							break;
@@ -486,12 +511,18 @@ static void mainProgramLoop(App &app, std::vector<char> &data, std::string &file
 				
 				bool isVisible = ((data[indx] >> i) & 1) == 1;
 
-				vertData[i + j * 8].color = isVisible ? ~0u : 0u;
-				vertData[(indx + 12) * 8 + i].color = isVisible ? ~0u : 0u;
+				vertData[i + j * 8 + 1].color = isVisible ? ~0u : 0u;
+				vertData[(indx + 12) * 8 + i + 1].color = isVisible ? ~0u : 0u;
 
 			}
 
 		}
+		uint32_t xOff = (chosenLetter - 32) % 8;
+		uint32_t yOff = (chosenLetter - 32) / 8;
+		
+		vertData[0].posX = 10.0f + (4 + xOff * 8) * smallButtonSize + xOff * 2 - 1;
+		vertData[0].posY = 10.0f + (6 + yOff * 12) * smallButtonSize + yOff * 2 - 1;
+
 
 		ssbo.updateBuffer(0, vertData.size() * sizeof(GPUVertexData), vertData.data());
 		ssbo.bind(0);
