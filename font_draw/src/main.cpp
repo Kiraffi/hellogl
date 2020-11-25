@@ -558,8 +558,9 @@ static void mainProgramLoop(App &app, std::vector<char> &data, std::string &file
 		SDL_Delay(1);
 
 		char str[100];
+		char renderLetter = chosenLetter != 127 ? char(chosenLetter) : ' ';
 		sprintf(str, "%2.2fms, fps: %4.2f, mx: %i, my: %i, mbs: %i ml: %i, mr: %i, Letter: %c", 
-			dt, 1000.0f / dt, mouseX, mouseY, mousePress, mouseLeftDown, mouseRightDown, char(chosenLetter));
+			dt, 1000.0f / dt, mouseX, mouseY, mousePress, mouseLeftDown, mouseRightDown, renderLetter);
 		SDL_SetWindowTitle(app.window, str);
 
 		//printf("Frame duration: %f fps: %f\n", dt, 1000.0f / dt);
