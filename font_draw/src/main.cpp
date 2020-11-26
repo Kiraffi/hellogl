@@ -58,7 +58,8 @@ static const char *vertSrc = R"(
 		vec2 p = vec2(-0.5f, -0.5f);
 		p.x = (vertId + 1) % 4 < 2 ? -0.5f : 0.5f;
 		p.y = vertId < 2 ? -0.5f : 0.5f;
-		vec2 vSize = vec2(float(values[quadId].vSizes & 65535u), float((values[quadId].vSizes >> 16) & 65535u)); 
+		vec2 vSize = vec2(float(values[quadId].vSizes & 0xffffu),
+			float((values[quadId].vSizes >> 16) & 0xffffu)); 
 		p *= vSize;
 		p += values[quadId].vpos;
 		p /= windowSize * 0.5f;
