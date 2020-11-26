@@ -136,4 +136,12 @@ void App::setVsyncEnabled(bool enable)
 }
 
 
-};
+
+void App::setClearColor(float r, float g, float b, float a)
+{
+	glClearColor(r, g, b, a);
+}
+
+
+
+}; // end of core namespace.

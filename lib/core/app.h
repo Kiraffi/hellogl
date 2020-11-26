@@ -13,6 +13,7 @@ public:
 	virtual ~App();
 	void resizeWindow(int w, int h);
 	void setVsyncEnabled(bool enable);
+	void setClearColor(float r, float g, float b, float a);
 
 	public: 
 		SDL_Window *window = nullptr;

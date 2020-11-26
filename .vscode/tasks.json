@@ -10,10 +10,14 @@
 				"-Wall",
 				"-m64",
 
-				"${workspaceFolder}/font_draw/src/main.cpp",
+				"${workspaceFolder}/font_render/src/main_font_renderer.cpp",
+				//"${workspaceFolder}/font_draw/src/main_font_draw.cpp",
+				
 				"${workspaceFolder}/external/glad/glad.c",
 				"${workspaceFolder}/lib/ogl/shader.cpp",
 				"${workspaceFolder}/lib/ogl/shaderbuffer.cpp",
+				"${workspaceFolder}/lib/core/app.cpp",
+				
 				"-o",
 				"${workspaceFolder}/hellogl",
 

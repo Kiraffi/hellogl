@@ -66,7 +66,6 @@ static const char *vertSrc = R"(
 		p += values[quadId].vpos;
 		p /= windowSize * 0.5f;
 		p -= 1.0f;
-		p += 0.25f / windowSize;
 		
 		gl_Position = vec4(p.xy, 0.5, 1.0);
 		vec4 c = vec4(0, 0, 0, 0);
@@ -144,15 +143,6 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 
 	ShaderBuffer ssbo(GL_SHADER_STORAGE_BUFFER, 10240u * 16u, GL_DYNAMIC_COPY, nullptr);
 	
-	SDL_Event event;
-	bool quit = false;
-	float dt = 0.0f;
-	float angle = 0.0f;
-
-	Uint64 nowStamp = SDL_GetPerformanceCounter();
-	Uint64 lastStamp = 0;
-	double freq = (double)SDL_GetPerformanceFrequency();
-
 	uint32_t chosenLetter = 'a';
 	//uint32_t lastTicks = SDL_GetTicks();
 
@@ -245,6 +235,15 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 	}
 
 	char buffData[12] = {};
+	SDL_Event event;
+	bool quit = false;
+	float dt = 0.0f;
+	float angle = 0.0f;
+
+	Uint64 nowStamp = SDL_GetPerformanceCounter();
+	Uint64 lastStamp = 0;
+	double freq = (double)SDL_GetPerformanceFrequency();
+
 
 	while (!quit)
 	{
