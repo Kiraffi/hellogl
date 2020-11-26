@@ -67,10 +67,10 @@ static const char *vertSrc = R"(
 		
 		gl_Position = vec4(p.xy, 0.5, 1.0);
 		vec4 c = vec4(0, 0, 0, 0);
-		c.r = float((values[quadId].vColor >> 0) & 255) / 255.0f;
-		c.g = float((values[quadId].vColor >> 8) & 255) / 255.0f;
-		c.b = float((values[quadId].vColor >> 16) & 255) / 255.0f;
-		c.a = float((values[quadId].vColor >> 24) & 255) / 255.0f;
+		c.r = float((values[quadId].vColor >> 0u) & 255u) / 255.0f;
+		c.g = float((values[quadId].vColor >> 8u) & 255u) / 255.0f;
+		c.b = float((values[quadId].vColor >> 16u) & 255u) / 255.0f;
+		c.a = float((values[quadId].vColor >> 24u) & 255u) / 255.0f;
 		colOut = c;
 	})";
 
