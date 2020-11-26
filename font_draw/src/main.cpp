@@ -535,6 +535,8 @@ static void mainProgramLoop(App &app, std::vector<char> &data, std::string &file
 				bool isVisible = ((data[indx] >> i) & 1) == 1;
 
 				vertData[i + j * 8 + 1].color = isVisible ? ~0u : 0u;
+				vertData[i + j * 8 + 1].posX = uint16_t(offX);
+				vertData[i + j * 8 + 1].posY = uint16_t(offY);
 				vertData[(indx + 12) * 8 + i + 1].color = isVisible ? ~0u : 0u;
 
 			}
