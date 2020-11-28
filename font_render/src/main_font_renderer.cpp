@@ -409,12 +409,18 @@ int main(int argCount, char **argv)
 		filename = argv[1];
 	}
 	
-	loadData(filename, data);
-	core::App app;
-	if(app.init("OpenGL 4.5, render font", SCREEN_WIDTH, SCREEN_HEIGHT))
+	if(loadData(filename, data))
 	{
-		mainProgramLoop(app, data, filename);
+		core::App app;
+		if(app.init("OpenGL 4.5, render font", SCREEN_WIDTH, SCREEN_HEIGHT))
+		{
+			mainProgramLoop(app, data, filename);
+		}
 	}
-
+	else
+	{
+		printf("Failed to load file: %s\n", filename.c_str());
+	}
+	
 	return 0;
 }

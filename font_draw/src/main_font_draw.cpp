@@ -2,13 +2,13 @@
 #include <cstdlib>
 #include <stdint.h>
 
-#include "../../external/glad/glad.h"
+#include "glad/glad.h"
 #include <SDL2/SDL.h>
 
-#include "../../lib/core/app.h"
+#include "core/app.h"
 
-#include "../../lib/ogl/shader.h"
-#include "../../lib/ogl/shaderbuffer.h"
+#include "ogl/shader.h"
+#include "ogl/shaderbuffer.h"
 
 #include <vector>
 #include <filesystem>
