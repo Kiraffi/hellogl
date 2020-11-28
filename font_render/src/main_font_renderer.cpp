@@ -2,13 +2,14 @@
 #include <cstdlib>
 #include <stdint.h>
 
-#include "../../external/glad/glad.h"
+
+#include "glad/glad.h"
 #include <SDL2/SDL.h>
 
-#include "../../lib/core/app.h"
+#include "core/app.h"
 
-#include "../../lib/ogl/shader.h"
-#include "../../lib/ogl/shaderbuffer.h"
+#include "ogl/shader.h"
+#include "ogl/shaderbuffer.h"
 
 #include <string>
 #include <vector>
@@ -193,13 +194,13 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 	indices.resize(6 * 10240);
 	for(int i = 0; i < 10240; ++i)
 	{
-		indices[i * 6 + 0] = i * 4 + 0;
-		indices[i * 6 + 1] = i * 4 + 1;
-		indices[i * 6 + 2] = i * 4 + 2;
+		indices[size_t(i) * 6 + 0] = i * 4 + 0;
+		indices[size_t(i) * 6 + 1] = i * 4 + 1;
+		indices[size_t(i) * 6 + 2] = i * 4 + 2;
 
-		indices[i * 6 + 3] = i * 4 + 0;
-		indices[i * 6 + 4] = i * 4 + 2;
-		indices[i * 6 + 5] = i * 4 + 3;
+		indices[size_t(i) * 6 + 3] = i * 4 + 0;
+		indices[size_t(i) * 6 + 4] = i * 4 + 2;
+		indices[size_t(i) * 6 + 5] = i * 4 + 3;
 	}
 
 
@@ -210,9 +211,9 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 
 	ShaderBuffer indexBuffer(
 		GL_ELEMENT_ARRAY_BUFFER, 
-		indices.size() * sizeof(uint32_t), 
+		uint32_t(indices.size() * sizeof(uint32_t)),
 		GL_STATIC_DRAW,
-		indices.data() 
+		indices.data()
 		);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer.handle);
 	//glEnableVertexAttribArray(0);  
@@ -236,14 +237,14 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 		{
 			for(int charIndex = 0; charIndex < 128 - 32; ++charIndex)
 			{
-				uint8_t p = data[y + charIndex * 12];
+				uint8_t p = data[y + size_t(charIndex) * 12];
 				for(int x = 0; x < 8; ++x)
 				{
 					uint8_t bitColor = uint8_t((p >> x) & 1) * 255;
-					fontPic[index * 4 + 0] = bitColor;
-					fontPic[index * 4 + 1] = bitColor;
-					fontPic[index * 4 + 2] = bitColor;
-					fontPic[index * 4 + 3] = bitColor;
+					fontPic[size_t(index) * 4 + 0] = bitColor;
+					fontPic[size_t(index) * 4 + 1] = bitColor;
+					fontPic[size_t(index) * 4 + 2] = bitColor;
+					fontPic[size_t(index) * 4 + 3] = bitColor;
 
 					++index;
 				}
@@ -290,7 +291,7 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 		angle += 0.001f * dt;
 		shader.useProgram();
 
-		glUniform2f(0, app.windowWidth, app.windowHeight);
+		glUniform2f(0, GLfloat(app.windowWidth), GLfloat(app.windowHeight));
 
 		while (SDL_PollEvent(&event))
 		{
@@ -357,7 +358,7 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 					if (event.window.event == SDL_WINDOWEVENT_RESIZED)
 					{
 						app.resizeWindow(event.window.data1, event.window.data2);
-						glUniform2f(0, app.windowWidth, app.windowHeight);
+						glUniform2f(0, GLfloat(app.windowWidth), GLfloat(app.windowHeight));
 					}
 					break;
 			}
@@ -371,7 +372,7 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 
 		
 
-		ssbo.updateBuffer(0, vertData.size() * sizeof(GPUVertexData), vertData.data());
+		ssbo.updateBuffer(0, uint32_t(vertData.size() * sizeof(GPUVertexData)), vertData.data());
 		ssbo.bind(0);
 //		glDrawArrays(GL_TRIANGLES, 0, 6);
 		glBindVertexArray(VAO);
@@ -381,7 +382,7 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 
-		glDrawElements(GL_TRIANGLES, vertData.size() * 6, GL_UNSIGNED_INT, 0);
+		glDrawElements(GL_TRIANGLES, GLsizei(vertData.size() * 6), GL_UNSIGNED_INT, 0);
 
 		SDL_GL_SwapWindow(app.window);
 		SDL_Delay(1);

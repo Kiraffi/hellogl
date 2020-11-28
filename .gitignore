@@ -33,4 +33,7 @@ hellogl
 *.out
 *.app
 
+.vs
+out
+
 hellogl
