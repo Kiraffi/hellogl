@@ -150,13 +150,13 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 	indices.resize(6 * 10240);
 	for(int i = 0; i < 10240; ++i)
 	{
-		indices[i * 6 + 0] = i * 4 + 0;
-		indices[i * 6 + 1] = i * 4 + 1;
-		indices[i * 6 + 2] = i * 4 + 2;
+		indices[size_t(i) * 6 + 0] = i * 4 + 0;
+		indices[size_t(i) * 6 + 1] = i * 4 + 1;
+		indices[size_t(i) * 6 + 2] = i * 4 + 2;
 
-		indices[i * 6 + 3] = i * 4 + 0;
-		indices[i * 6 + 4] = i * 4 + 2;
-		indices[i * 6 + 5] = i * 4 + 3;
+		indices[size_t(i) * 6 + 3] = i * 4 + 0;
+		indices[size_t(i) * 6 + 4] = i * 4 + 2;
+		indices[size_t(i) * 6 + 5] = i * 4 + 3;
 	}
 
 
@@ -167,9 +167,9 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 
 	ShaderBuffer indexBuffer(
 		GL_ELEMENT_ARRAY_BUFFER, 
-		indices.size() * sizeof(uint32_t), 
+		uint32_t(indices.size() * sizeof(uint32_t)),
 		GL_STATIC_DRAW,
-		indices.data() 
+		indices.data()
 		);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer.handle)
 ;	//glEnableVertexAttribArray(0);  
@@ -188,8 +188,8 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 
 		GPUVertexData &vdata = vertData[0];
 		vdata.color = (255u) + (255u < 24u);
-		vdata.pixelSizeX = smallButtonSize * 8 + 4;
-		vdata.pixelSizeY = smallButtonSize * 12 + 4;
+		vdata.pixelSizeX = uint16_t(smallButtonSize) * 8 + 4;
+		vdata.pixelSizeY = uint16_t(smallButtonSize) * 12 + 4;
 		vdata.posX = offX;
 		vdata.posY = offY;
 	}
@@ -201,7 +201,7 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 			float offX = float((i - 4) * (borderSizes + buttonSize)) + app.windowWidth * 0.5f;
 			float offY = float((j - 6) * (borderSizes + buttonSize)) + app.windowHeight * 0.5f;
 
-			GPUVertexData &vdata = vertData[i + j * 8 + 1];
+			GPUVertexData &vdata = vertData[i + size_t(j) * 8 + 1];
 			vdata.color = 0;
 			vdata.pixelSizeX = vdata.pixelSizeY = buttonSize;
 			vdata.posX = offX;
@@ -217,7 +217,7 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 		{
 			for(int i = 0; i < 8; ++i)
 			{
-				GPUVertexData &vdata = vertData[i + j * 8 + (k + 1) * 8 * 12 + 1];
+				GPUVertexData &vdata = vertData[i + size_t(j) * 8 + (size_t(k) + 1) * 8 * 12 + 1];
 
 				float smallOffX = float(i * (smallButtonSize)) + 10.0f + float(x * 8) * smallButtonSize + x * 2;
 				float smallOffY = float(j * (smallButtonSize)) + 10.0f + float(y * 12) * smallButtonSize + y * 2;
@@ -263,7 +263,7 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 		angle += 0.001f * dt;
 		shader.useProgram();
 
-		glUniform2f(0, app.windowWidth, app.windowHeight);
+		glUniform2f(0, GLfloat(app.windowWidth), GLfloat(app.windowHeight));
 
 		while (SDL_PollEvent(&event))
 		{
@@ -351,7 +351,7 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 					if (event.window.event == SDL_WINDOWEVENT_RESIZED)
 					{
 						app.resizeWindow(event.window.data1, event.window.data2);
-						glUniform2f(0, app.windowWidth, app.windowHeight);
+						glUniform2f(0, GLfloat(app.windowWidth), GLfloat(app.windowHeight));
 					}
 					break;
 			}
@@ -386,10 +386,10 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 				
 				bool isVisible = ((data[indx] >> i) & 1) == 1;
 
-				vertData[i + j * 8 + 1].color = isVisible ? ~0u : 0u;
-				vertData[i + j * 8 + 1].posX = uint16_t(offX);
-				vertData[i + j * 8 + 1].posY = uint16_t(offY);
-				vertData[(indx + 12) * 8 + i + 1].color = isVisible ? ~0u : 0u;
+				vertData[i + size_t(j) * 8 + 1].color = isVisible ? ~0u : 0u;
+				vertData[i + size_t(j) * 8 + 1].posX = uint16_t(offX);
+				vertData[i + size_t(j) * 8 + 1].posY = uint16_t(offY);
+				vertData[(size_t(indx) + 12) * 8 + i + 1].color = isVisible ? ~0u : 0u;
 
 			}
 
@@ -401,12 +401,12 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 		vertData[0].posY = 10.0f + (6 + yOff * 12) * smallButtonSize + yOff * 2 - 1;
 
 
-		ssbo.updateBuffer(0, vertData.size() * sizeof(GPUVertexData), vertData.data());
+		ssbo.updateBuffer(0, uint32_t(vertData.size() * sizeof(GPUVertexData)), vertData.data());
 		ssbo.bind(0);
 //		glDrawArrays(GL_TRIANGLES, 0, 6);
 		glBindVertexArray(VAO);
 		
-		glDrawElements(GL_TRIANGLES, vertData.size() * 6, GL_UNSIGNED_INT, 0);
+		glDrawElements(GL_TRIANGLES, GLsizei(vertData.size() * 6), GL_UNSIGNED_INT, 0);
 
 		SDL_GL_SwapWindow(app.window);
 		SDL_Delay(1);

@@ -8,4 +8,5 @@ add_executable (font_draw "src/main_font_draw.cpp")
 
 target_link_libraries(font_draw PRIVATE MyGlad MyLibraries)
 # TODO: Add tests and install targets if needed.
-target_link_libraries(font_draw PUBLIC OpenGL::OpenGL ${CMAKE_DL_LIBS} ${SDL2_LIBRARY})
+target_link_libraries(font_draw PUBLIC OpenGL::GL ${CMAKE_DL_LIBS} ${SDL2_LIBRARY})
+

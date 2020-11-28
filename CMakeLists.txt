@@ -49,5 +49,15 @@ set_target_properties(
     "font_render" PROPERTIES
     VS_DEBUGGER_WORKING_DIRECTORY
     "${CMAKE_SOURCE_DIR}"
-    #${CMAKE_CURRENT_LIST_DIR}
-    )
+ #   #${CMAKE_CURRENT_LIST_DIR}
+)
+
+set_target_properties(font_render PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:font_draw>")
+                                               #VS_DEBUGGER_COMMAND           "$<TARGET_FILE:font_draw>"
+
+set_target_properties(
+    "font_draw" PROPERTIES
+    VS_DEBUGGER_WORKING_DIRECTORY
+    "${CMAKE_SOURCE_DIR}"
+ #   #${CMAKE_CURRENT_LIST_DIR}
+)
