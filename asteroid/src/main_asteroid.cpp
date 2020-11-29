@@ -181,7 +181,7 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 	}
 	//GL_TEXTURE_BUFFER
 	ShaderBuffer verticesBuffer(GL_SHADER_STORAGE_BUFFER, uint32_t(vertices.size() * sizeof(ModelVertex)), GL_STATIC_DRAW, vertices.data());
-	ShaderBuffer indicesModels(GL_ELEMENT_ARRAY_BUFFER, uint32_t(modelIndices.size() * sizeof(ModelVertex)), GL_STATIC_DRAW, modelIndices.data());
+	ShaderBuffer indicesModels(GL_ELEMENT_ARRAY_BUFFER, uint32_t(modelIndices.size() * sizeof(uint32_t)), GL_STATIC_DRAW, modelIndices.data());
 	ShaderBuffer instanceDataBuffer(GL_SHADER_STORAGE_BUFFER, uint32_t(modelInstances.size() * sizeof(ModelInstance)), GL_STATIC_DRAW, modelInstances.data());
 
 

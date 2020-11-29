@@ -7,7 +7,8 @@
 ShaderBuffer::ShaderBuffer(unsigned int bufferType, unsigned int size, unsigned int usage, void *dataPtr)
 {
 	assert(size > 0 && "Buffer size must be greater than 0 bytes");
-	assert(size % 16 == 0 && "Buffer size should be 16 byte size multiplier.");
+	if(bufferType != GL_ELEMENT_ARRAY_BUFFER)
+		assert(size % 16 == 0 && "Buffer size should be 16 byte size multiplier.");
 
 	switch(bufferType)
 	{
