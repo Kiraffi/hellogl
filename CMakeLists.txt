@@ -43,5 +43,5 @@ add_subdirectory("mylibs")
 add_subdirectory("external")
 add_subdirectory ("font_draw")
 add_subdirectory ("font_render")
-add_subdirectory ("asteroid")
+add_subdirectory ("space_shooter")
 
