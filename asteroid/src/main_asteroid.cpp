@@ -21,6 +21,20 @@
 static constexpr int SCREEN_WIDTH  = 640;
 static constexpr int SCREEN_HEIGHT = 540;
 
+
+struct Entity
+{
+	float posX;
+	float posY;
+	float posZ;
+	float rotation;
+
+	float speedX;
+	float speedY;
+	float size;
+	float padding;
+};
+
 struct GPUVertexData
 {
 	float posX;
@@ -36,7 +50,7 @@ struct GPUVertexData
 };
 
 
-struct ModelInstance
+struct GpuModelInstance
 {
 	float posX;
 	float posY;
@@ -50,7 +64,7 @@ struct ModelInstance
 	uint32_t modelIndiceCount;
 };
 
-struct ModelVertex
+struct GpuModelVertex
 {
 	float posX;
 	float posY;
@@ -129,47 +143,41 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 		return;
 	}
 
-	std::vector< ModelInstance > modelInstances;
+	std::vector< GpuModelInstance > modelInstances;
 	std::vector< uint32_t > freeModelInstanceIndices;
 
 	std::vector< uint32_t > modelIndices;
 
-	std::vector < ModelVertex > vertices;
+	std::vector < GpuModelVertex > vertices;
 
 	modelInstances.reserve(100);
-	{
-		modelInstances.emplace_back(ModelInstance{ .posX = 200.0f, .posY = 200.0f, .posZ = 0.0f, .rotation = 0.0f, .color = ~0u, .size = 10.0f, 
-			.modelVertexStartIndex = 0, .modelIndiceCount = 3 });
+	
+	std::vector < Entity > entities;
 
-		vertices.emplace_back(ModelVertex{ .posX = -1.0f, .posY = -1.0f, .posZ = 0.5f, .padding = 0.0f });
-		vertices.emplace_back(ModelVertex{ .posX =  0.0f, .posY =  1.0f, .posZ = 0.5f, .padding = 0.0f });
-		vertices.emplace_back(ModelVertex{ .posX =  1.0f, .posY = -1.0f, .posZ = 0.5f, .padding = 0.0f });
-		modelIndices.emplace_back(0);
-		modelIndices.emplace_back(1);
-		modelIndices.emplace_back(2);
-	}
-
-	for(uint32_t asteroidTypes = 0u; asteroidTypes < 100u; ++asteroidTypes)
+	constexpr uint32_t AsteroidMaxTypes = 100u;
+	for(uint32_t asteroidTypes = 0u; asteroidTypes < AsteroidMaxTypes; ++asteroidTypes)
 	{
 		static constexpr uint32_t AsteroidCorners = 32u;
 
 		float xPos = float(rand()) / float(RAND_MAX) * 500.0f;
 		float yPos = float(rand()) / float(RAND_MAX) * 500.0f;
 		float size = 5.0f + 10.0f * float(rand()) / float(RAND_MAX);
-		modelInstances.emplace_back(ModelInstance{ .posX = xPos, .posY = yPos, .posZ = 0.0f,
-									.rotation = 0.0f, .color = ~0u, .size = size,
+		entities.emplace_back(Entity{ .posX = xPos,  .posY = yPos, .posZ = 0.5f, .rotation = 0.0f, .speedX = 0.0f, .speedY = 0.0f, .size = size, .padding = 0.0f });
+
+		modelInstances.emplace_back(GpuModelInstance{ .posX = xPos, .posY = yPos, .posZ = 0.0f,
+									.rotation = 0.0f, .color = core::getColor(0.5, 0.5, 0.5, 1.0f), .size = size,
 			.modelVertexStartIndex = uint32_t(vertices.size()), .modelIndiceCount = AsteroidCorners });
 
 
-		uint32_t startIndex = uint32_t((asteroidTypes + 1u) << 8u);
-		vertices.emplace_back(ModelVertex{ .posX = 0.0f, .posY = 0.0f, .posZ = 0.5f, .padding = 0.0f });
+		uint32_t startIndex = uint32_t(asteroidTypes << 8u);
+		vertices.emplace_back(GpuModelVertex{ .posX = 0.0f, .posY = 0.0f, .posZ = 0.5f, .padding = 0.0f });
 		for (uint32_t i = 0; i < AsteroidCorners; ++i)
 		{
 			float angle = float(i) * float(2.0f * M_PI) / float(AsteroidCorners);
 			float x = cos(angle);
 			float y = sin(angle);
 			float r = 0.8f + 0.2f * (float(rand()) / float(RAND_MAX));
-			vertices.emplace_back(ModelVertex{ .posX = x * r, .posY = y *r, .posZ = 0.5f, .padding = 0.0f });
+			vertices.emplace_back(GpuModelVertex{ .posX = x * r, .posY = y *r, .posZ = 0.5f, .padding = 0.0f });
 			modelIndices.emplace_back(startIndex);
 			modelIndices.emplace_back((i + 1) % AsteroidCorners + startIndex);
 			modelIndices.emplace_back((i + 2) % AsteroidCorners + startIndex);
@@ -179,18 +187,37 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 		modelIndices.emplace_back(AsteroidCorners - 1u + startIndex);
 		modelIndices.emplace_back(1u + startIndex);
 	}
+
+	{
+		float xPos = 200.0f;
+		float yPos = 200.0f;
+		float size = 10.0f;
+		entities.emplace_back(Entity{ .posX = xPos,  .posY = yPos, .posZ = 0.5f, .rotation = 0.0f, .speedX = 0.0f, .speedY = 0.0f, .size = size, .padding = 0.0f });
+
+		modelInstances.emplace_back(GpuModelInstance{ .posX = xPos, .posY = yPos, .posZ = 0.0f, .rotation = 0.0f, .color = core::getColor(1.0f, 1.0f, 0.0f, 1.0f), .size = size,
+			.modelVertexStartIndex = uint32_t(vertices.size()), .modelIndiceCount = 3 });
+
+		vertices.emplace_back(GpuModelVertex{ .posX = -1.0f, .posY = -1.0f, .posZ = 0.5f, .padding = 0.0f });
+		vertices.emplace_back(GpuModelVertex{ .posX = 0.0f, .posY = 1.5f, .posZ = 0.5f, .padding = 0.0f });
+		vertices.emplace_back(GpuModelVertex{ .posX = 1.0f, .posY = -1.0f, .posZ = 0.5f, .padding = 0.0f });
+		uint32_t startIndex = AsteroidMaxTypes << 8u;
+		modelIndices.emplace_back(0 + startIndex);
+		modelIndices.emplace_back(1 + startIndex);
+		modelIndices.emplace_back(2 + startIndex);
+	}
+
 	//GL_TEXTURE_BUFFER
-	ShaderBuffer verticesBuffer(GL_SHADER_STORAGE_BUFFER, uint32_t(vertices.size() * sizeof(ModelVertex)), GL_STATIC_DRAW, vertices.data());
+	ShaderBuffer verticesBuffer(GL_SHADER_STORAGE_BUFFER, uint32_t(vertices.size() * sizeof(GpuModelVertex)), GL_STATIC_DRAW, vertices.data());
 	ShaderBuffer indicesModels(GL_ELEMENT_ARRAY_BUFFER, uint32_t(modelIndices.size() * sizeof(uint32_t)), GL_STATIC_DRAW, modelIndices.data());
-	ShaderBuffer instanceDataBuffer(GL_SHADER_STORAGE_BUFFER, uint32_t(modelInstances.size() * sizeof(ModelInstance)), GL_STATIC_DRAW, modelInstances.data());
+	ShaderBuffer instanceDataBuffer(GL_SHADER_STORAGE_BUFFER, uint32_t(modelInstances.size() * sizeof(GpuModelInstance)), GL_DYNAMIC_DRAW, modelInstances.data());
 
 
-	ShaderBuffer ssbo(GL_SHADER_STORAGE_BUFFER, 10240u * 16u, GL_DYNAMIC_COPY, nullptr);
+	ShaderBuffer ssbo(GL_SHADER_STORAGE_BUFFER, 1024u * 16u, GL_DYNAMIC_COPY, nullptr);
 	
 
 	std::vector<uint32_t> quadIndices;
-	quadIndices.resize(6 * 10240);
-	for(int i = 0; i < 10240; ++i)
+	quadIndices.resize(6 * 1024);
+	for(int i = 0; i < 1024; ++i)
 	{
 		quadIndices[size_t(i) * 6 + 0] = i * 4 + 0;
 		quadIndices[size_t(i) * 6 + 1] = i * 4 + 1;
@@ -269,7 +296,6 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 	SDL_Event event;
 	bool quit = false;
 	float dt = 0.0f;
-	float angle = 0.0f;
 
 	Uint64 nowStamp = SDL_GetPerformanceCounter();
 	Uint64 lastStamp = 0;
@@ -277,90 +303,172 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 
 
 	app.setClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+
+	bool keysDown[ 255 ] = {};
+
 	while (!quit)
 	{
 		lastStamp = nowStamp;
 		nowStamp = SDL_GetPerformanceCounter();
-		dt = float((nowStamp - lastStamp)*1000 / freq );
-
-
-		angle += 0.001f * dt;
-		shaderTexture.useProgram();
-
-		glUniform2f(0, GLfloat(app.windowWidth), GLfloat(app.windowHeight));
+		dt = float(( nowStamp - lastStamp ) * 1000 / freq / 1000.0);
 
 		while (SDL_PollEvent(&event))
 		{
-			switch(event.type)
+			switch (event.type)
 			{
 				case SDL_QUIT:
 					quit = true;
 					break;
-				
+
 				case SDL_KEYDOWN:
 				{
-					if(event.key.keysym.sym >= 32 && event.key.keysym.sym < 128)
-					{
-						if(((event.key.keysym.mod) & (KMOD_SHIFT | KMOD_LSHIFT | KMOD_RSHIFT | KMOD_CAPS)) != 0 &&
-							event.key.keysym.sym >= 96 && event.key.keysym.sym <= 122)
-						{
-							txt += char(event.key.keysym.sym - 32);
-						
-						} 
-						else
-						{
-							txt += char(event.key.keysym.sym);
-						}
-						updateText(txt, vertData, cursor);
-
-					}
-
-					switch(event.key.keysym.sym)
+					switch (event.key.keysym.sym)
 					{
 						case SDLK_ESCAPE:
 							quit = true;
 							break;
 						case SDLK_UP:
-							cursor.charHeight++;
-							updateText(txt, vertData, cursor);
-							break;
+						case SDLK_w:
+						{
+							keysDown[ 0 ] = true;
+						}
+						break;
 
 						case SDLK_DOWN:
-							cursor.charHeight--;
-							if(cursor.charHeight < 2)
-								++cursor.charHeight;
-							updateText(txt, vertData, cursor);
 							break;
 
 						case SDLK_LEFT:
-							cursor.charWidth--;
-							if(cursor.charWidth < 2)
-								++cursor.charWidth;
-							updateText(txt, vertData, cursor);
-							break;
+						case SDLK_a:
+						{
+							keysDown[ 1 ] = true;
+						}
+						break;
 
 
 						case SDLK_RIGHT:
-							cursor.charWidth++;
-							updateText(txt, vertData, cursor);
-							break;
+						case SDLK_d:
+						{
+							keysDown[ 2 ] = true;
+						}
+						break;
 
 						default:
 							break;
 					}
-
 				}
-				 case SDL_WINDOWEVENT:
+				break;
+
+				case SDL_KEYUP:
+				{
+					switch (event.key.keysym.sym)
+					{
+						case SDLK_UP:
+						case SDLK_w:
+						{
+							keysDown[ 0 ] = false;
+						}
+						break;
+
+						case SDLK_DOWN:
+							break;
+
+						case SDLK_LEFT:
+						case SDLK_a:
+						{
+							keysDown[ 1 ] = false;
+						}
+						break;
+
+
+						case SDLK_RIGHT:
+						case SDLK_d:
+						{
+							keysDown[ 2 ] = false;
+						}
+						break;
+
+
+						default:
+							break;
+					}
+				}
+				break;
+
+				case SDL_WINDOWEVENT:
+				{
 					if (event.window.event == SDL_WINDOWEVENT_RESIZED)
 					{
 						app.resizeWindow(event.window.data1, event.window.data2);
 					}
-					break;
+				}
+				break;
 			}
 		}
 
-		 //Clear color buffer
-		glClear( GL_COLOR_BUFFER_BIT );
+		Entity &playerEntity = entities[ AsteroidMaxTypes ];
+
+		float updateDur = 0.0f;
+		float dtSplit = dt;
+		{
+			Uint64 timer1 = SDL_GetPerformanceCounter();
+			// Update position, definitely not accurate physics, if dt is big this doesn't work properly, trying to split it into several updates.
+			while (dtSplit > 0.0f)
+			{
+				float dddt = fminf(dtSplit, 0.001f);
+				float origSpeed = sqrtf(playerEntity.speedX * playerEntity.speedX + playerEntity.speedY * playerEntity.speedY);
+
+				if (keysDown[ 1 ])
+				{
+					float rotSpeed = fminf(origSpeed, 1.0f);
+					rotSpeed = rotSpeed * 2.0f + ( 1.0f - rotSpeed ) * 5.0f;
+					playerEntity.rotation += rotSpeed * dddt;
+				}
+				if (keysDown[ 2 ])
+				{
+					float rotSpeed = fminf(origSpeed, 1.0f);
+					rotSpeed = rotSpeed * 2.0f + ( 1.0f - rotSpeed ) * 5.0f;
+					playerEntity.rotation -= rotSpeed * dddt;
+				}
+				if (keysDown[ 0 ])
+				{
+					playerEntity.speedX += cosf(playerEntity.rotation + float(M_PI) * 0.5f) * 1000.0f * dddt;
+					playerEntity.speedY += sinf(playerEntity.rotation + float(M_PI) * 0.5f) * 1000.0f * dddt;
+				}
+
+
+
+
+				{
+					float origSpeed = sqrtf(playerEntity.speedX * playerEntity.speedX + playerEntity.speedY * playerEntity.speedY);
+					float dec = dddt * 0.5f * origSpeed;
+					float speed = fmax(origSpeed - dec, 0.0f);
+					float slowDown = origSpeed > 0.1f ? speed / origSpeed : 0.0f;
+					playerEntity.speedX *= slowDown;
+					playerEntity.speedY *= slowDown;
+
+					playerEntity.posX += playerEntity.speedX * dddt;
+					playerEntity.posY += playerEntity.speedY * dddt;
+				}
+
+
+				dtSplit -= dddt;
+			}
+			for (uint32_t i = 0; i < modelInstances.size(); ++i)
+			{
+				modelInstances[ i ].posX = entities[ i ].posX;
+				modelInstances[ i ].posY = entities[ i ].posY;
+				modelInstances[ i ].posZ = entities[ i ].posZ;
+				modelInstances[ i ].rotation = entities[ i ].rotation;
+			}
+			Uint64 timer2 = SDL_GetPerformanceCounter();
+			updateDur = float(( timer2 - timer1 ) * 1000 / freq / 1000.0);
+		}
+		//Clear color buffer
+		glClear(GL_COLOR_BUFFER_BIT);
+
+		modelShader.useProgram();
+		instanceDataBuffer.updateBuffer(0, uint32_t(modelInstances.size() * sizeof(GpuModelInstance)), modelInstances.data());
+
 		
 		// "Model rendering"
 		{
@@ -371,6 +479,8 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 			verticesBuffer.bind(1);
 			instanceDataBuffer.bind(2);
 			glDrawElements(GL_TRIANGLES, GLsizei(modelIndices.size()), GL_UNSIGNED_INT, 0);
+			verticesBuffer.unbind();
+			instanceDataBuffer.unbind();
 		}
 		// UI
 
@@ -390,13 +500,14 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 
 
 			glDrawElements(GL_TRIANGLES, GLsizei(vertData.size() * 6), GL_UNSIGNED_INT, 0);
+
+			ssbo.unbind();
 		}
 		SDL_GL_SwapWindow(app.window);
 		SDL_Delay(1);
 
 		char str[100];
-		sprintf(str, "%2.2fms, fps: %4.2f", 
-			dt, 1000.0f / dt);
+		sprintf(str, "%2.2fms, fps: %4.2f, update: %2.4fms", dt * 1000.0f, 1.0f / dt, updateDur * 1000.0f);
 		SDL_SetWindowTitle(app.window, str);
 
 		//printf("Frame duration: %f fps: %f\n", dt, 1000.0f / dt);
@@ -421,6 +532,7 @@ int main(int argCount, char **argv)
 		core::App app;
 		if(app.init("OpenGL 4.5, render font", SCREEN_WIDTH, SCREEN_HEIGHT))
 		{
+			app.setVsyncEnabled(true);
 			mainProgramLoop(app, data, filename);
 		}
 	}

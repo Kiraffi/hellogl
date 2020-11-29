@@ -41,8 +41,15 @@ void main()
 		
 	vec2 p = vData.vpos.xy;
 	p *= iData.iSize;
-	p += iData.iPos.xy;
 
+	float sv = sin(iData.iRotation);
+	float cv = cos(iData.iRotation);
+	p = vec2(	cv * p.x - sv * p.y,
+				sv * p.x + cv * p.y);
+
+	// Offset
+	p += iData.iPos.xy;
+	// Move into NDC
 	p /= windowSize * 0.5f;
 	p -= 1.0f;
 		

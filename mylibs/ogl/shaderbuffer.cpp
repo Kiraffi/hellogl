@@ -74,7 +74,7 @@ ShaderBuffer::~ShaderBuffer()
 
 void ShaderBuffer::updateBuffer(unsigned int offset, unsigned int size, void *dataPtr)
 {
-	assert(offset + size < this->size && "trying to write buffer out of range!");
+	assert(offset + size <= this->size && "trying to write buffer out of range!");
 	assert(dataPtr != nullptr && "No data given to update");
 
 	glNamedBufferSubData(handle, offset, size, dataPtr);
@@ -84,4 +84,10 @@ void ShaderBuffer::updateBuffer(unsigned int offset, unsigned int size, void *da
 void ShaderBuffer::bind(unsigned int slot)
 {
 	glBindBufferBase(bufferType, slot, handle);
+	boundSlot = slot;
+}
+
+void ShaderBuffer::unbind()
+{
+	glBindBufferBase(bufferType, boundSlot, 0);
 }

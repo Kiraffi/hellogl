@@ -154,7 +154,6 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 	SDL_Event event;
 	bool quit = false;
 	float dt = 0.0f;
-	float angle = 0.0f;
 
 	Uint64 nowStamp = SDL_GetPerformanceCounter();
 	Uint64 lastStamp = 0;
@@ -176,10 +175,6 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 		bool mouseLeftDown = (mousePress & SDL_BUTTON(SDL_BUTTON_LEFT)) == SDL_BUTTON(SDL_BUTTON_LEFT);
 		bool mouseRightDown = (mousePress & SDL_BUTTON(SDL_BUTTON_RIGHT)) == SDL_BUTTON(SDL_BUTTON_RIGHT);
 
-		angle += 0.001f * dt;
-		shader.useProgram();
-
-		glUniform2f(0, GLfloat(app.windowWidth), GLfloat(app.windowHeight));
 
 		while (SDL_PollEvent(&event))
 		{
@@ -263,13 +258,17 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 							break;
 					}
 				}
-				 case SDL_WINDOWEVENT:
+				break;
+
+				case SDL_WINDOWEVENT:
+				{
 					if (event.window.event == SDL_WINDOWEVENT_RESIZED)
 					{
 						app.resizeWindow(event.window.data1, event.window.data2);
 						glUniform2f(0, GLfloat(app.windowWidth), GLfloat(app.windowHeight));
 					}
-					break;
+				}
+				break;
 			}
 		}
 
@@ -277,6 +276,7 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 		glClear( GL_COLOR_BUFFER_BIT );
 		
 		shader.useProgram();
+		glUniform2f(0, GLfloat(app.windowWidth), GLfloat(app.windowHeight));
 
 
 		
