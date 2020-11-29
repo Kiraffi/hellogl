@@ -1,11 +1,11 @@
 ﻿# CMakeList.txt : Top-level CMake project file, do global configuration
 # and include sub-projects here.
 #
-cmake_minimum_required (VERSION 3.8)
+cmake_minimum_required (VERSION 3.15)
 
 project ("hellogl" VERSION 0.0.1)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS FALSE)
 
@@ -43,21 +43,5 @@ add_subdirectory("mylibs")
 add_subdirectory("external")
 add_subdirectory ("font_draw")
 add_subdirectory ("font_render")
+add_subdirectory ("asteroid")
 
-
-set_target_properties(
-    "font_render" PROPERTIES
-    VS_DEBUGGER_WORKING_DIRECTORY
-    "${CMAKE_SOURCE_DIR}"
- #   #${CMAKE_CURRENT_LIST_DIR}
-)
-
-set_target_properties(font_render PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:font_draw>")
-                                               #VS_DEBUGGER_COMMAND           "$<TARGET_FILE:font_draw>"
-
-set_target_properties(
-    "font_draw" PROPERTIES
-    VS_DEBUGGER_WORKING_DIRECTORY
-    "${CMAKE_SOURCE_DIR}"
- #   #${CMAKE_CURRENT_LIST_DIR}
-)

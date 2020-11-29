@@ -26,97 +26,14 @@ struct GPUVertexData
 	uint32_t color;
 };
 
-static const char *vertSrc = R"(
-	#version 450 core
-
-	layout (location = 0) uniform vec2 windowSize;
-
-	struct VData
-	{
-		vec2 vpos;
-		uint vSizes;
-		uint vColor;
-	};
-
-	layout (std430, binding=0) buffer shader_data
-	{
-		VData values[];
-	};
 
 
-	layout (location = 0) out vec4 colOut;
-	void main()
-	{
-		int quadId = gl_VertexID / 4;
-		int vertId = gl_VertexID % 4;
-
-/*
-		vec2 p = vec2(cos(posRotSize.z), sin(posRotSize.z));
-		p = vec2(	p.x * aPos.x - p.y * aPos.y,
-					p.y * aPos.x + p.x * aPos.y);
-					*/
-
-		
-		vec2 p = vec2(-0.5f, -0.5f);
-		p.x = (vertId + 1) % 4 < 2 ? -0.5f : 0.5f;
-		p.y = vertId < 2 ? -0.5f : 0.5f;
-		vec2 vSize = vec2(float(values[quadId].vSizes & 0xffffu),
-			float((values[quadId].vSizes >> 16) & 0xffffu)); 
-		p *= vSize;
-		p += values[quadId].vpos;
-		p /= windowSize * 0.5f;
-		p -= 1.0f;
-		
-		gl_Position = vec4(p.xy, 0.5, 1.0);
-		vec4 c = vec4(0, 0, 0, 0);
-		c.r = float((values[quadId].vColor >> 0u) & 255u) / 255.0f;
-		c.g = float((values[quadId].vColor >> 8u) & 255u) / 255.0f;
-		c.b = float((values[quadId].vColor >> 16u) & 255u) / 255.0f;
-		c.a = float((values[quadId].vColor >> 24u) & 255u) / 255.0f;
-		colOut = c;
-	})";
-
-static const char *fragSrc = R"(
-	#version 450 core
-	layout(origin_upper_left) in vec4 gl_FragCoord;
-	layout (location = 0) out vec4 col;
-
-	layout (location = 0) in vec4 colIn;
-	layout(depth_unchanged) out float gl_FragDepth;
-	
-	void main()
-	{
-		col = colIn;
-	})";
-
-
-bool loadData(const std::string &fileName, std::vector<char> &dataOut)
+bool saveFontData(const std::string &filename, const std::vector<char> &data)
 {
 	//
-	if(std::filesystem::exists(fileName))
+	if(std::filesystem::exists(filename))
 	{
-		std::filesystem::path p(fileName);
-		uint32_t s = uint32_t(std::filesystem::file_size(p));
-
-		dataOut.resize(s);
-
-		std::ifstream f(p, std::ios::in | std::ios::binary);
-
-
-		f.read(dataOut.data(), s);
-
-		printf("filesize: %u\n", s);
-		return true;
-	}
-	return false;
-}
-
-bool saveData(const std::string &fileName, const std::vector<char> &data)
-{
-	//
-	if(std::filesystem::exists(fileName))
-	{
-		std::filesystem::path p(fileName);
+		std::filesystem::path p(filename);
 
 
 		std::ofstream f(p, std::ios::out | std::ios::binary);
@@ -134,12 +51,11 @@ bool saveData(const std::string &fileName, const std::vector<char> &data)
 static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string &filename)
 {
 	Shader shader;
-	if(!shader.initShader(vertSrc, fragSrc))
+	if (!shader.initShader("assets/shaders/colorquad.vert", "assets/shaders/colorquad.frag"))
 	{
 		printf("Failed to init shader\n");
 		return;
 	}
-
 
 	ShaderBuffer ssbo(GL_SHADER_STORAGE_BUFFER, 10240u * 16u, GL_DYNAMIC_COPY, nullptr);
 	
@@ -187,7 +103,7 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 		float offY = (borderSizes + buttonSize) + app.windowHeight * 0.5f;
 
 		GPUVertexData &vdata = vertData[0];
-		vdata.color = (255u) + (255u < 24u);
+		vdata.color = core::getColor(1.0f, 0.0f, 0.0f, 1.0f);
 		vdata.pixelSizeX = uint16_t(smallButtonSize) * 8 + 4;
 		vdata.pixelSizeY = uint16_t(smallButtonSize) * 12 + 4;
 		vdata.posX = offX;
@@ -279,13 +195,13 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 						event.key.keysym.sym == SDLK_s)
 					{
 						// save;
-						saveData(filename, data);
+						saveFontData(filename, data);
 					}
 					else if((event.key.keysym.mod & (KMOD_CTRL | KMOD_LCTRL | KMOD_RCTRL)) != 0 &&
 						event.key.keysym.sym == SDLK_l)
 					{
 						// load;
-						loadData(filename, data);
+						core::loadFontData(filename, data);
 					}
 
 					else if(((event.key.keysym.mod) & (KMOD_CTRL | KMOD_LCTRL | KMOD_RCTRL)) != 0 &&
@@ -427,19 +343,24 @@ int main(int argCount, char **argv)
 	std::string filename;
 	if(argCount < 2)
 	{
-		filename = "new_font.dat";
+		filename = "assets/font/new_font.dat";
 	}
 	else
 	{
 		filename = argv[1];
 	}
 	
-	loadData(filename, data);
-	core::App app;
-	if(app.init("OpenGL 4.5", SCREEN_WIDTH, SCREEN_HEIGHT))
+	if (!core::loadFontData(filename, data))
 	{
-		mainProgramLoop(app, data, filename);
-	}
 
+	}
+	else
+	{
+		core::App app;
+		if (app.init("OpenGL 4.5", SCREEN_WIDTH, SCREEN_HEIGHT))
+		{
+			mainProgramLoop(app, data, filename);
+		}
+	}
 	return 0;
 }

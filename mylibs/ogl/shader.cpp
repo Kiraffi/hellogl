@@ -3,6 +3,9 @@
 #include <stdint.h>
 #include <cstdio>
 #include <cstdlib>
+#include <string>
+#include <filesystem>
+#include <fstream>
 
 #include "../../external/glad/glad.h"
 
@@ -53,16 +56,60 @@ static unsigned int shaderFromSource(const char *src, unsigned int shaderType)
 	return shader;
 }
 
-bool Shader::initShader(const char *vertSrc, const char *fragSrc)
+
+static bool loadShaderFile(const char *filename, std::string &outShaderText)
 {
-	unsigned int vertexShader = shaderFromSource(vertSrc, GL_VERTEX_SHADER);
+	if (std::filesystem::exists(filename))
+	{
+		std::filesystem::path p(filename);
+		uint32_t s = uint32_t(std::filesystem::file_size(p));
+
+		outShaderText.resize(s);
+
+		std::ifstream f(p, std::ios::in | std::ios::binary);
+
+
+		f.read(outShaderText.data(), s);
+
+		printf("Read shader file: %s\n", filename);
+		return true;
+	}
+
+	else
+	{
+		printf("Shader file: %s does not exist\n", filename);
+		return false;
+	}
+
+	return false;
+}
+
+
+bool Shader::initShader(const char *vertShaderFilename, const char *fragShaderFilename)
+{
+	std::string vertShaderText;
+	std::string fragShaderText;
+
+	if (!loadShaderFile(vertShaderFilename, vertShaderText))
+	{
+		printf("Failed to load vertex shader: %s\n", vertShaderFilename);
+		return false;
+	}
+
+	if (!loadShaderFile(fragShaderFilename, fragShaderText))
+	{
+		printf("Failed to load fragment shader: %s\n", fragShaderFilename);
+		return false;
+	}
+
+	unsigned int vertexShader = shaderFromSource(vertShaderText.c_str(), GL_VERTEX_SHADER);
 	if(vertexShader == 0)
 	{
 		printf("Error at compiling vertex shader\n");
 		return false;
 	}
 	
-	unsigned int fragmentShader = shaderFromSource(fragSrc, GL_FRAGMENT_SHADER);
+	unsigned int fragmentShader = shaderFromSource(fragShaderText.c_str(), GL_FRAGMENT_SHADER);
 	if(fragmentShader == 0)
 	{
 		glDeleteShader(vertexShader);

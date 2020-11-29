@@ -16,6 +16,8 @@
 #include <filesystem>
 #include <fstream>
 
+#include <cmath>
+
 static constexpr int SCREEN_WIDTH  = 640;
 static constexpr int SCREEN_HEIGHT = 540;
 
@@ -33,78 +35,29 @@ struct GPUVertexData
 	float padding[2];
 };
 
-static const char *vertSrc = R"(
-	#version 450 core
 
-	layout (location = 0) uniform vec2 windowSize;
+struct ModelInstance
+{
+	float posX;
+	float posY;
+	float posZ;
 
-	struct VData
-	{
-		vec2 vpos;
-		uint vSizes;
-		uint vColor;
+	float rotation;
 
-		vec2 vUv;
-		vec2 tmp;
-	};
+	uint32_t color;
+	float size;
+	uint32_t modelVertexStartIndex;
+	uint32_t modelIndiceCount;
+};
 
-	layout (std430, binding=0) buffer shader_data
-	{
-		VData values[];
-	};
+struct ModelVertex
+{
+	float posX;
+	float posY;
+	float posZ;
 
-
-	layout (location = 0) out vec4 colOut;
-	layout (location = 1) out vec2 uvOut;
-	void main()
-	{
-		int quadId = gl_VertexID / 4;
-		int vertId = gl_VertexID % 4;
-
-		vec2 p = vec2(-0.5f, -0.5f);
-		p.x = (vertId + 1) % 4 < 2 ? -0.5f : 0.5f;
-		p.y = vertId < 2 ? -0.5f : 0.5f;
-
-		uvOut = p + 0.5f;
-		
-		uvOut.x = (uvOut.x) / (128.0f - 32.0f) + values[quadId].vUv.x;
-
-		vec2 vSize = vec2(float(values[quadId].vSizes & 0xffffu),
-			float((values[quadId].vSizes >> 16) & 0xffffu)); 
-		p *= vSize;
-		p += values[quadId].vpos;
-		p /= windowSize * 0.5f;
-		p -= 1.0f;
-		
-		gl_Position = vec4(p.xy, 0.5, 1.0);
-		vec4 c = vec4(0, 0, 0, 0);
-		c.r = float((values[quadId].vColor >> 0u) & 255u) / 255.0f;
-		c.g = float((values[quadId].vColor >> 8u) & 255u) / 255.0f;
-		c.b = float((values[quadId].vColor >> 16u) & 255u) / 255.0f;
-		c.a = float((values[quadId].vColor >> 24u) & 255u) / 255.0f;
-		colOut = c;
-	})";
-
-static const char *fragSrc = R"(
-	#version 450 core
-	layout(origin_upper_left) in vec4 gl_FragCoord;
-	layout (location = 0) out vec4 outColor;
-
-	layout (location = 0) in vec4 colIn;
-	layout (location = 1) in vec2 uvIn;
-	layout(depth_unchanged) out float gl_FragDepth;
-	
-	layout (binding = 0) uniform sampler2D ourTexture;
-
-	void main()
-	{
-		outColor = texture(ourTexture, uvIn);
-		outColor.a = clamp(outColor.a / 0.5f, 0.0f, 1.0f);
-		outColor.rgb = colIn.rgb;
-
-	}
-	)";
-
+	float padding;
+};
 
 
 struct Cursor
@@ -121,7 +74,7 @@ static void addText(std::string &str, std::vector<GPUVertexData> &vertData, Curs
 	for(int i = 0; i < int(str.length()); ++i)
 	{
 		GPUVertexData vdata;
-		vdata.color = core::getColor(0.0f, 1.0f, 0.0f, 1.0f);
+		vdata.color = core::getColor(0.0f, 1.0f, 0, 1.0f);
 		vdata.pixelSizeX = cursor.charWidth;
 		vdata.pixelSizeY = cursor.charHeight;
 		vdata.posX = cursor.xPos;
@@ -157,30 +110,95 @@ static void updateText(std::string &str, std::vector<GPUVertexData> &vertData, C
 
 
 
+
 static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string &filename)
 {
-	Shader shader;
-	if(!shader.initShader("assets/shaders/texturedquad.vert", "assets/shaders/texturedquad.frag"))
+	srand(100);
+
+	Shader modelShader;
+	if(!modelShader.initShader("assets/shaders/model.vert", "assets/shaders/model.frag"))
 	{
-		printf("Failed to init shader\n");
+		printf("Failed to init model shader\n");
 		return;
 	}
+
+	Shader shaderTexture;
+	if (!shaderTexture.initShader("assets/shaders/texturedquad.vert", "assets/shaders/texturedquad.frag"))
+	{
+		printf("Failed to init texture shader\n");
+		return;
+	}
+
+	std::vector< ModelInstance > modelInstances;
+	std::vector< uint32_t > freeModelInstanceIndices;
+
+	std::vector< uint32_t > modelIndices;
+
+	std::vector < ModelVertex > vertices;
+
+	modelInstances.reserve(100);
+	{
+		modelInstances.emplace_back(ModelInstance{ .posX = 200.0f, .posY = 200.0f, .posZ = 0.0f, .rotation = 0.0f, .color = ~0u, .size = 10.0f, 
+			.modelVertexStartIndex = 0, .modelIndiceCount = 3 });
+
+		vertices.emplace_back(ModelVertex{ .posX = -1.0f, .posY = -1.0f, .posZ = 0.5f, .padding = 0.0f });
+		vertices.emplace_back(ModelVertex{ .posX =  0.0f, .posY =  1.0f, .posZ = 0.5f, .padding = 0.0f });
+		vertices.emplace_back(ModelVertex{ .posX =  1.0f, .posY = -1.0f, .posZ = 0.5f, .padding = 0.0f });
+		modelIndices.emplace_back(0);
+		modelIndices.emplace_back(1);
+		modelIndices.emplace_back(2);
+	}
+
+	for(uint32_t asteroidTypes = 0u; asteroidTypes < 100u; ++asteroidTypes)
+	{
+		static constexpr uint32_t AsteroidCorners = 32u;
+
+		float xPos = float(rand()) / float(RAND_MAX) * 500.0f;
+		float yPos = float(rand()) / float(RAND_MAX) * 500.0f;
+		float size = 5.0f + 10.0f * float(rand()) / float(RAND_MAX);
+		modelInstances.emplace_back(ModelInstance{ .posX = xPos, .posY = yPos, .posZ = 0.0f,
+									.rotation = 0.0f, .color = ~0u, .size = size,
+			.modelVertexStartIndex = uint32_t(vertices.size()), .modelIndiceCount = AsteroidCorners });
+
+
+		uint32_t startIndex = uint32_t((asteroidTypes + 1u) << 8u);
+		vertices.emplace_back(ModelVertex{ .posX = 0.0f, .posY = 0.0f, .posZ = 0.5f, .padding = 0.0f });
+		for (uint32_t i = 0; i < AsteroidCorners; ++i)
+		{
+			float angle = float(i) * float(2.0f * M_PI) / float(AsteroidCorners);
+			float x = cos(angle);
+			float y = sin(angle);
+			float r = 0.8f + 0.2f * (float(rand()) / float(RAND_MAX));
+			vertices.emplace_back(ModelVertex{ .posX = x * r, .posY = y *r, .posZ = 0.5f, .padding = 0.0f });
+			modelIndices.emplace_back(startIndex);
+			modelIndices.emplace_back((i + 1) % AsteroidCorners + startIndex);
+			modelIndices.emplace_back((i + 2) % AsteroidCorners + startIndex);
+		}
+
+		modelIndices.emplace_back(startIndex);
+		modelIndices.emplace_back(AsteroidCorners - 1u + startIndex);
+		modelIndices.emplace_back(1u + startIndex);
+	}
+	//GL_TEXTURE_BUFFER
+	ShaderBuffer verticesBuffer(GL_SHADER_STORAGE_BUFFER, uint32_t(vertices.size() * sizeof(ModelVertex)), GL_STATIC_DRAW, vertices.data());
+	ShaderBuffer indicesModels(GL_ELEMENT_ARRAY_BUFFER, uint32_t(modelIndices.size() * sizeof(ModelVertex)), GL_STATIC_DRAW, modelIndices.data());
+	ShaderBuffer instanceDataBuffer(GL_SHADER_STORAGE_BUFFER, uint32_t(modelInstances.size() * sizeof(ModelInstance)), GL_STATIC_DRAW, modelInstances.data());
 
 
 	ShaderBuffer ssbo(GL_SHADER_STORAGE_BUFFER, 10240u * 16u, GL_DYNAMIC_COPY, nullptr);
 	
 
-	std::vector<uint32_t> indices;
-	indices.resize(6 * 10240);
+	std::vector<uint32_t> quadIndices;
+	quadIndices.resize(6 * 10240);
 	for(int i = 0; i < 10240; ++i)
 	{
-		indices[size_t(i) * 6 + 0] = i * 4 + 0;
-		indices[size_t(i) * 6 + 1] = i * 4 + 1;
-		indices[size_t(i) * 6 + 2] = i * 4 + 2;
+		quadIndices[size_t(i) * 6 + 0] = i * 4 + 0;
+		quadIndices[size_t(i) * 6 + 1] = i * 4 + 1;
+		quadIndices[size_t(i) * 6 + 2] = i * 4 + 2;
 
-		indices[size_t(i) * 6 + 3] = i * 4 + 0;
-		indices[size_t(i) * 6 + 4] = i * 4 + 2;
-		indices[size_t(i) * 6 + 5] = i * 4 + 3;
+		quadIndices[size_t(i) * 6 + 3] = i * 4 + 0;
+		quadIndices[size_t(i) * 6 + 4] = i * 4 + 2;
+		quadIndices[size_t(i) * 6 + 5] = i * 4 + 3;
 	}
 
 
@@ -189,13 +207,11 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 
 	glBindVertexArray(VAO);
 
-	ShaderBuffer indexBuffer(
-		GL_ELEMENT_ARRAY_BUFFER, 
-		uint32_t(indices.size() * sizeof(uint32_t)),
-		GL_STATIC_DRAW,
-		indices.data()
-		);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer.handle);
+	ShaderBuffer indexBufferQuads(GL_ELEMENT_ARRAY_BUFFER, uint32_t(quadIndices.size() * sizeof(uint32_t)), GL_STATIC_DRAW,	quadIndices.data());
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBufferQuads.handle);
+
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indicesModels.handle);
 	//glEnableVertexAttribArray(0);  
 
 	std::vector<GPUVertexData> vertData;
@@ -269,7 +285,7 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 
 
 		angle += 0.001f * dt;
-		shader.useProgram();
+		shaderTexture.useProgram();
 
 		glUniform2f(0, GLfloat(app.windowWidth), GLfloat(app.windowHeight));
 
@@ -338,7 +354,6 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 					if (event.window.event == SDL_WINDOWEVENT_RESIZED)
 					{
 						app.resizeWindow(event.window.data1, event.window.data2);
-						glUniform2f(0, GLfloat(app.windowWidth), GLfloat(app.windowHeight));
 					}
 					break;
 			}
@@ -347,23 +362,35 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 		 //Clear color buffer
 		glClear( GL_COLOR_BUFFER_BIT );
 		
-		shader.useProgram();
+		// "Model rendering"
+		{
+			modelShader.useProgram();
+			glUniform2f(0, GLfloat(app.windowWidth), GLfloat(app.windowHeight));
+
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indicesModels.handle);
+			verticesBuffer.bind(1);
+			instanceDataBuffer.bind(2);
+			glDrawElements(GL_TRIANGLES, GLsizei(modelIndices.size()), GL_UNSIGNED_INT, 0);
+		}
+		// UI
+
+		{
+			shaderTexture.useProgram();
+			glUniform2f(0, GLfloat(app.windowWidth), GLfloat(app.windowHeight));
+
+			ssbo.updateBuffer(0, uint32_t(vertData.size() * sizeof(GPUVertexData)), vertData.data());
+			ssbo.bind(0);
+			//		glDrawArrays(GL_TRIANGLES, 0, 6);
+			glBindVertexArray(VAO);
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBufferQuads.handle);
+
+			glBindTexture(GL_TEXTURE_2D, texHandle);
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 
-		
-
-		ssbo.updateBuffer(0, uint32_t(vertData.size() * sizeof(GPUVertexData)), vertData.data());
-		ssbo.bind(0);
-//		glDrawArrays(GL_TRIANGLES, 0, 6);
-		glBindVertexArray(VAO);
-
-		glBindTexture(GL_TEXTURE_2D, texHandle);
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-
-		glDrawElements(GL_TRIANGLES, GLsizei(vertData.size() * 6), GL_UNSIGNED_INT, 0);
-
+			glDrawElements(GL_TRIANGLES, GLsizei(vertData.size() * 6), GL_UNSIGNED_INT, 0);
+		}
 		SDL_GL_SwapWindow(app.window);
 		SDL_Delay(1);
 
