@@ -414,7 +414,7 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 			// Update position, definitely not accurate physics, if dt is big this doesn't work properly, trying to split it into several updates.
 			while (dtSplit > 0.0f)
 			{
-				float dddt = fminf(dtSplit, 0.001f);
+				float dddt = fminf(dtSplit, 0.005f);
 				float origSpeed = sqrtf(playerEntity.speedX * playerEntity.speedX + playerEntity.speedY * playerEntity.speedY);
 
 				if (keysDown[ 1 ])
