@@ -3,7 +3,7 @@
 layout(origin_upper_left) in vec4 gl_FragCoord;
 layout (location = 0) out vec4 outColor;
 
-layout (location = 0) in vec4 colIn;
+layout (location = 0) in flat vec4 colIn;
 layout(depth_unchanged) out float gl_FragDepth;
 
 void main()

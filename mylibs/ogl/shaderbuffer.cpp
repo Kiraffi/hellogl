@@ -4,7 +4,8 @@
 
 #include <cassert>
 
-ShaderBuffer::ShaderBuffer(unsigned int bufferType, unsigned int size, unsigned int usage, void *dataPtr)
+ShaderBuffer::ShaderBuffer(unsigned int bufferType, unsigned int size, unsigned int usage, void *dataPtr,
+	bool immutable)
 {
 	assert(size > 0 && "Buffer size must be greater than 0 bytes");
 	if(bufferType != GL_ELEMENT_ARRAY_BUFFER)
@@ -52,7 +53,8 @@ ShaderBuffer::ShaderBuffer(unsigned int bufferType, unsigned int size, unsigned 
 		break;
 
 		default:
-			assert(0 && "Unknown buffer usage!");
+			if(!immutable)
+				assert(0 && "Unknown buffer usage!");
 	}
 
 	this->bufferType = bufferType;
@@ -61,8 +63,12 @@ ShaderBuffer::ShaderBuffer(unsigned int bufferType, unsigned int size, unsigned 
 
 	glCreateBuffers(1, &handle);
 	this->handle = handle;
+	this->immutable = immutable;
 	assert(handle && "Failed to generate buffer handle!");
-	glNamedBufferData(handle, size, dataPtr, usage);
+	if(immutable)
+		glNamedBufferStorage(handle, size, dataPtr, usage);
+	else
+		glNamedBufferData(handle, size, dataPtr, usage);
 }
 
 ShaderBuffer::~ShaderBuffer()

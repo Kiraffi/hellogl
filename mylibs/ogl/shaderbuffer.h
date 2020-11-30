@@ -3,7 +3,8 @@
 class ShaderBuffer
 {
 public:
-	ShaderBuffer(unsigned int bufferType, unsigned int size, unsigned int usasge, void *dataPtr = nullptr);
+	ShaderBuffer(unsigned int bufferType, unsigned int size, unsigned int usasge, 
+		void *dataPtr = nullptr, bool immutable = false);
 	~ShaderBuffer();
 
 	void updateBuffer(unsigned int offset, unsigned int size, void *dataPtr);
@@ -17,4 +18,5 @@ public:
 	unsigned int usage = 0;
 
 	unsigned int boundSlot = 0u;
+	bool immutable = false;
 };

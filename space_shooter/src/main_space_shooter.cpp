@@ -49,28 +49,39 @@ struct GPUVertexData
 	float padding[2];
 };
 
+/*
 
 struct GpuModelInstance
 {
 	float posX;
 	float posY;
-	float posZ;
-
-	float rotation;
+	//float posZ;
+	float sinRotation;
+	float cosRotation;
+	//float rotation;
 
 	uint32_t color;
 	float size;
 	uint32_t modelVertexStartIndex;
 	uint32_t modelIndiceCount;
 };
+*/
+
+struct GpuModelInstance
+{
+	uint32_t pos;
+	uint32_t sinCosRotSize;
+	uint32_t color;
+	uint32_t modelVertexStartIndex;
+};
 
 struct GpuModelVertex
 {
 	float posX;
 	float posY;
-	float posZ;
+	//float posZ;
 
-	float padding;
+	//float padding;
 };
 
 
@@ -154,30 +165,41 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 	
 	std::vector < Entity > entities;
 
-	constexpr uint32_t AsteroidMaxTypes = 100u;
+	constexpr uint32_t AsteroidMaxTypes = 1000u;
 	for(uint32_t asteroidTypes = 0u; asteroidTypes < AsteroidMaxTypes; ++asteroidTypes)
 	{
 		static constexpr uint32_t AsteroidCorners = 32u;
 
-		float xPos = float(rand()) / float(RAND_MAX) * 500.0f;
-		float yPos = float(rand()) / float(RAND_MAX) * 500.0f;
+		float xPos = float(rand()) / float(RAND_MAX) * 2000.0f;
+		float yPos = float(rand()) / float(RAND_MAX) * 1200.0f;
 		float size = 5.0f + 10.0f * float(rand()) / float(RAND_MAX);
 		entities.emplace_back(Entity{ .posX = xPos,  .posY = yPos, .posZ = 0.5f, .rotation = 0.0f, .speedX = 0.0f, .speedY = 0.0f, .size = size, .padding = 0.0f });
 
-		modelInstances.emplace_back(GpuModelInstance{ .posX = xPos, .posY = yPos, .posZ = 0.0f,
-									.rotation = 0.0f, .color = core::getColor(0.5, 0.5, 0.5, 1.0f), .size = size,
+/*
+		modelInstances.emplace_back(GpuModelInstance{ .posX = xPos, .posY = yPos, 
+				//.posZ = 0.0f, .rotation = 0.0f, 
+				.sinRotation = 0.0f, .cosRotation = 1.0f,
+				.color = core::getColor(0.5, 0.5, 0.5, 1.0f), .size = size,
 			.modelVertexStartIndex = uint32_t(vertices.size()), .modelIndiceCount = AsteroidCorners });
+*/
+		uint32_t pos = uint32_t((xPos / 2048.0f) * 65535.0f);
+		pos += uint32_t((yPos / 2048.0f) * 65535.0f) << 16u;
+		uint32_t sincossize = uint32_t((size / 64.0f) * 1023.0f);
+		modelInstances.emplace_back(GpuModelInstance{ .pos = pos, 
+				.sinCosRotSize = sincossize,
+				.color = core::getColor(0.5, 0.5, 0.5, 1.0f),
+			.modelVertexStartIndex = uint32_t(vertices.size()) });
 
 
 		uint32_t startIndex = uint32_t(asteroidTypes << 8u);
-		vertices.emplace_back(GpuModelVertex{ .posX = 0.0f, .posY = 0.0f, .posZ = 0.5f, .padding = 0.0f });
+		vertices.emplace_back(GpuModelVertex{ .posX = 0.0f, .posY = 0.0f}); //, .posZ = 0.5f, .padding = 0.0f });
 		for (uint32_t i = 0; i < AsteroidCorners; ++i)
 		{
 			float angle = float(i) * float(2.0f * M_PI) / float(AsteroidCorners);
 			float x = cos(angle);
 			float y = sin(angle);
 			float r = 0.8f + 0.2f * (float(rand()) / float(RAND_MAX));
-			vertices.emplace_back(GpuModelVertex{ .posX = x * r, .posY = y *r, .posZ = 0.5f, .padding = 0.0f });
+			vertices.emplace_back(GpuModelVertex{ .posX = x * r, .posY = y *r}); //, .posZ = 0.5f, .padding = 0.0f });
 			modelIndices.emplace_back(startIndex);
 			modelIndices.emplace_back((i + 1) % AsteroidCorners + startIndex);
 			modelIndices.emplace_back((i + 2) % AsteroidCorners + startIndex);
@@ -194,12 +216,25 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 		float size = 10.0f;
 		entities.emplace_back(Entity{ .posX = xPos,  .posY = yPos, .posZ = 0.5f, .rotation = 0.0f, .speedX = 0.0f, .speedY = 0.0f, .size = size, .padding = 0.0f });
 
-		modelInstances.emplace_back(GpuModelInstance{ .posX = xPos, .posY = yPos, .posZ = 0.0f, .rotation = 0.0f, .color = core::getColor(1.0f, 1.0f, 0.0f, 1.0f), .size = size,
-			.modelVertexStartIndex = uint32_t(vertices.size()), .modelIndiceCount = 3 });
+		uint32_t pos = uint32_t((xPos / 2048.0f) * 65535.0f);
+		pos += uint32_t((yPos / 2048.0f) * 65535.0f) << 16u;
+		uint32_t sincossize = uint32_t((size / 64.0f) * 1023.0f);
 
-		vertices.emplace_back(GpuModelVertex{ .posX = -1.0f, .posY = -1.0f, .posZ = 0.5f, .padding = 0.0f });
-		vertices.emplace_back(GpuModelVertex{ .posX = 0.0f, .posY = 1.5f, .posZ = 0.5f, .padding = 0.0f });
-		vertices.emplace_back(GpuModelVertex{ .posX = 1.0f, .posY = -1.0f, .posZ = 0.5f, .padding = 0.0f });
+/*
+		modelInstances.emplace_back(GpuModelInstance{ .posX = xPos, .posY = yPos, 
+			//.posZ = 0.0f, .rotation = 0.0f, 
+			.sinRotation = 0.0f, .cosRotation = 0.0f,
+			.color = core::getColor(1.0f, 1.0f, 0.0f, 1.0f), .size = size,
+			.modelVertexStartIndex = uint32_t(vertices.size()), .modelIndiceCount = 3 });
+*/
+		modelInstances.emplace_back(GpuModelInstance{ .pos = pos, 
+				.sinCosRotSize = sincossize,
+				.color = core::getColor(1.0, 1.0, 0.0, 1.0f),
+			.modelVertexStartIndex = uint32_t(vertices.size()) });
+
+		vertices.emplace_back(GpuModelVertex{ .posX = -1.0f, .posY = -1.0f}); //, .posZ = 0.5f, .padding = 0.0f });
+		vertices.emplace_back(GpuModelVertex{ .posX = 0.0f, .posY = 1.5f});//, .posZ = 0.5f, .padding = 0.0f });
+		vertices.emplace_back(GpuModelVertex{ .posX = 1.0f, .posY = -1.0f});//, .posZ = 0.5f, .padding = 0.0f });
 		uint32_t startIndex = AsteroidMaxTypes << 8u;
 		modelIndices.emplace_back(0 + startIndex);
 		modelIndices.emplace_back(1 + startIndex);
@@ -207,10 +242,14 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 	}
 
 	//GL_TEXTURE_BUFFER
-	ShaderBuffer verticesBuffer(GL_SHADER_STORAGE_BUFFER, uint32_t(vertices.size() * sizeof(GpuModelVertex)), GL_STATIC_DRAW, vertices.data());
-	ShaderBuffer indicesModels(GL_ELEMENT_ARRAY_BUFFER, uint32_t(modelIndices.size() * sizeof(uint32_t)), GL_STATIC_DRAW, modelIndices.data());
+	//ShaderBuffer verticesBuffer(GL_SHADER_STORAGE_BUFFER, uint32_t(vertices.size() * sizeof(GpuModelVertex)), GL_STATIC_DRAW, vertices.data());
+	//ShaderBuffer indicesModels(GL_ELEMENT_ARRAY_BUFFER, uint32_t(modelIndices.size() * sizeof(uint32_t)), GL_STATIC_DRAW, modelIndices.data());
 	ShaderBuffer instanceDataBuffer(GL_SHADER_STORAGE_BUFFER, uint32_t(modelInstances.size() * sizeof(GpuModelInstance)), GL_DYNAMIC_DRAW, modelInstances.data());
 
+
+	ShaderBuffer verticesBuffer(GL_SHADER_STORAGE_BUFFER, uint32_t(vertices.size() * sizeof(GpuModelVertex)), 0, vertices.data(), true);
+	ShaderBuffer indicesModels(GL_ELEMENT_ARRAY_BUFFER, uint32_t(modelIndices.size() * sizeof(uint32_t)), 0, modelIndices.data(), true);
+	//ShaderBuffer instanceDataBuffer(GL_SHADER_STORAGE_BUFFER, uint32_t(modelInstances.size() * sizeof(GpuModelInstance)), 0, modelInstances.data(), true);
 
 	ShaderBuffer ssbo(GL_SHADER_STORAGE_BUFFER, 1024u * 16u, GL_DYNAMIC_COPY, nullptr);
 	
@@ -306,6 +345,13 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 
 	bool keysDown[ 255 ] = {};
 
+
+	uint32_t queries[2 * 4] = {0, 0};
+	glGenQueries(2 * 4, queries);
+	for(uint32_t i = 2; i < 8; ++i)
+		glQueryCounter(queries[i], GL_TIMESTAMP);
+	
+	uint32_t queryIndex = 0;
 	while (!quit)
 	{
 		lastStamp = nowStamp;
@@ -453,12 +499,45 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 
 				dtSplit -= dddt;
 			}
+
+			while(playerEntity.posX > app.windowWidth)
+			{
+				playerEntity.posX -= app.windowWidth;
+			}
+			while(playerEntity.posX < 0.0f)
+			{
+				playerEntity.posX += app.windowWidth;
+			}
+			while(playerEntity.posY > app.windowHeight)
+			{
+				playerEntity.posY -= app.windowHeight;
+			}
+			while(playerEntity.posY < 0.0f)
+			{
+				playerEntity.posY += app.windowHeight;
+			}
+
 			for (uint32_t i = 0; i < modelInstances.size(); ++i)
 			{
+				uint32_t pos = uint32_t((entities[ i ].posX / 2048.0f) * 65535.0f);
+				pos += uint32_t((entities[ i ].posY / 2048.0f) * 65535.0f) << 16u;
+				uint32_t sincossize = uint32_t((entities[ i ].size / 64.0f) * 1023.0f);
+				float sinv = sinf(entities[ i ].rotation);
+				float cosv = cosf(entities[ i ].rotation);
+				sincossize += uint32_t((sinv * 0.5f + 0.5f) * 1023.0f) << 10u;
+				sincossize += uint32_t((cosv * 0.5f + 0.5f) * 1023.0f) << 20u;
+
+
+				modelInstances[ i ].pos = pos;
+				modelInstances[ i ].sinCosRotSize = sincossize;
+				/*
 				modelInstances[ i ].posX = entities[ i ].posX;
 				modelInstances[ i ].posY = entities[ i ].posY;
-				modelInstances[ i ].posZ = entities[ i ].posZ;
-				modelInstances[ i ].rotation = entities[ i ].rotation;
+				modelInstances[ i ].sinRotation = sinf(entities[ i ].rotation);
+				modelInstances[ i ].cosRotation = cosf(entities[ i ].rotation);
+				//modelInstances[ i ].posZ = entities[ i ].posZ;
+				//modelInstances[ i ].rotation = entities[ i ].rotation;
+				*/
 			}
 			Uint64 timer2 = SDL_GetPerformanceCounter();
 			updateDur = float(( timer2 - timer1 ) * 1000 / freq / 1000.0);
@@ -466,6 +545,8 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 		//Clear color buffer
 		glClear(GL_COLOR_BUFFER_BIT);
 
+		glQueryCounter(queries[queryIndex], GL_TIMESTAMP);
+			
 		modelShader.useProgram();
 		instanceDataBuffer.updateBuffer(0, uint32_t(modelInstances.size() * sizeof(GpuModelInstance)), modelInstances.data());
 
@@ -503,12 +584,39 @@ static void mainProgramLoop(core::App &app, std::vector<char> &data, std::string
 
 			ssbo.unbind();
 		}
+		glQueryCounter(queries[queryIndex + 1], GL_TIMESTAMP);
 		SDL_GL_SwapWindow(app.window);
 		SDL_Delay(1);
+		float gpuDuration = 0.0f;
+		
+		{
+			int done = 0;
+			uint32_t qlast = (queryIndex + 6) % 8;
+			while(!done)
+			{
+				glGetQueryObjectiv(queries[qlast + 0], GL_QUERY_RESULT_AVAILABLE, &done);
+			}
+			done = 0;
+			while(!done)
+			{
+				glGetQueryObjectiv(queries[qlast + 1], GL_QUERY_RESULT_AVAILABLE, &done);
+			}
 
+			GLuint64 startTime = 0;
+			GLuint64 endTime = 0;
+			glGetQueryObjectui64v(queries[qlast + 0], GL_QUERY_RESULT, &startTime);
+			glGetQueryObjectui64v(queries[qlast + 1], GL_QUERY_RESULT, &endTime);
+			
+			gpuDuration = float(double(endTime - startTime) / 1000000.0);
+	
+		}
+		
 		char str[100];
-		sprintf(str, "%2.2fms, fps: %4.2f, update: %2.4fms", dt * 1000.0f, 1.0f / dt, updateDur * 1000.0f);
+		sprintf(str, "%2.2fms, fps: %4.2f, update: %2.3fms, gpu: %2.3fms", 
+			dt * 1000.0f, 1.0f / dt, updateDur * 1000.0f, gpuDuration);
 		SDL_SetWindowTitle(app.window, str);
+
+		queryIndex = (queryIndex + 2) % 8;
 
 		//printf("Frame duration: %f fps: %f\n", dt, 1000.0f / dt);
 	}
